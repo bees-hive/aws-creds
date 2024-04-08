@@ -1,0 +1,7 @@
+#!/usr/bin/env sh -e
+# This script invokes ahead of the 'save-work' execution.
+
+which -s ruff || (echo "ruff is not installed" && exit 1)
+ruff check --config line-length=120 --fix aws-creds.py || \
+ruff check --config line-length=120 --add-noqa aws-creds.py
+ruff format --config line-length=120 aws-creds.py
