@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
+set -o errexit
+set -o pipefail
 # update Brew formulae
 TAG=$(git describe)
 COMMIT=$(git log --pretty=%H -1)
 
 if type brew >/dev/null 2>&1 ; then
-    info-text "Updating Homebrew formulae..."
+    echo "Updating Homebrew formulae..."
     brew bump-formula-pr --no-audit --tag=${TAG} --revision=${COMMIT} aws-creds
 else
-    error-text "brew binary is not available."
-    error-text "Please make a manual formulae update."
+    echo "'brew' binary is not available."
+    echo "Please make a manual formulae update."
     cat <<MESSAGE
 Instructions:
 
@@ -19,4 +21,7 @@ Instructions:
 MESSAGE
 fi
 # add GitHub release
+git-elegant show-release-notes smart $(git tag | tail -2 | head -1) $(git tag | tail -1) | pbcopy
+echo "Release notes are in the clipboard."
+sleep 2
 open https://github.com/bees-hive/aws-creds/releases/new
