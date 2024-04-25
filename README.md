@@ -22,6 +22,8 @@ requested commands.
 The latest version can be installed using the following command:
 `curl -sSL https://raw.githubusercontent.com/bees-hive/aws-creds/main/install.sh | bash`
 
+For Brew users, just run `brew install bees-hive/hive/aws-creds`.
+
 ## Getting Started
 
 ### AWS IAM Identity Center (AWS SSO)
