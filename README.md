@@ -18,14 +18,16 @@ requested commands.
 
 
 ## Installation
-TODO
+
+The latest version can be installed using the following command:
+`curl -sSL https://raw.githubusercontent.com/bees-hive/aws-creds/main/install.sh | bash`
 
 ## Getting Started
 
 ### AWS IAM Identity Center (AWS SSO)
 
 You should have the IAM Identity Center start URL (like `https://xxxxxx.awsapps.com/start`)
-and its region (like `us-east-1`). `python aws-creds.py scan-ic https://xxxxxx.awsapps.com/start us-east-1` command
+and its region (like `us-east-1`). `aws-creds scan-ic https://xxxxxx.awsapps.com/start us-east-1` command
 generates all possible login aliases. Pick those you want and save them to the shell configuration profile file.
 Once you run an alias, it will open the browser and ask you to authenticate. After successful authentication,
 it will export the AWS session environment variables to the current shell session.

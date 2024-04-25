@@ -6,9 +6,19 @@ from hashlib import sha1
 import os
 import sys
 
-_me = Path(__file__).absolute()
 _prog = Path(__file__).name.split(".")[0]
-_dependencies_home = _me.parent.joinpath(f".{_prog}")
+_dependencies_home = Path.home().joinpath(".cache").joinpath(_prog)
+
+
+def _remove_contents(directory: Path) -> None:
+    for entry in directory.iterdir():
+        if entry.is_dir():
+            _remove_contents(entry)
+            entry.rmdir()
+        else:
+            if str(entry).startswith(".ic."):
+                continue
+            entry.unlink()
 
 
 def pip_wtf(dependencies: str) -> None:
@@ -18,7 +28,9 @@ def pip_wtf(dependencies: str) -> None:
     dependencies_hash = _dependencies_home.joinpath(f".d.{sha1(dependencies.encode()).hexdigest()}")
     if dependencies_hash.exists():
         return
+    print("Cache directory:", _dependencies_home)
     _dependencies_home.mkdir(exist_ok=True)
+    _remove_contents(_dependencies_home)
     dependencies_hash.touch(exist_ok=True)
     os.system(" ".join([sys.executable, "-m", "pip", "install", "--target", str(_dependencies_home), dependencies]))
 
@@ -27,7 +39,7 @@ if sys.version_info < (3, 7):
     print("Support Python 3.7 or above", file=sys.stderr)
     exit(1)
 
-pip_wtf("boto3==1.34.38")
+pip_wtf("boto3==1.34.40")
 from botocore.session import Session  # noqa: E402
 
 
@@ -137,7 +149,7 @@ def _connect(ic: IdentityCenter, account_id: str, role: str) -> None:
 
 def main():
     parser = ArgumentParser(
-        description="Painless CLI authentification using various AWS identities.",
+        description="Painless CLI authentication using various AWS identities.",
         prog=_prog,
         formatter_class=lambda prog: HelpFormatter(prog, width=72),
     )
