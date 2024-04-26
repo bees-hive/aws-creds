@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# This workflow installs the new updated script after every commit.
+set -o errexit
+set -o pipefail
+if test "$USER" != "extsoft"; then
+  echo "No installation allowed for '$USER'."
+  exit
+fi
+cd "$(git rev-parse --show-toplevel)"
+
+install -v -m 755 aws-creds.py /usr/local/bin/aws-creds

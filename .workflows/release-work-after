@@ -1,17 +1,18 @@
 #!/usr/bin/env bash
 set -o errexit
 set -o pipefail
+cd "$(git rev-parse --show-toplevel)"
 # update Brew formulae
 TAG=$(git describe)
 COMMIT=$(git log --pretty=%H -1)
 
-if type brew >/dev/null 2>&1 ; then
-    echo "Updating Homebrew formulae..."
-    brew bump-formula-pr --no-audit --tag=${TAG} --revision=${COMMIT} aws-creds
+if type brew >/dev/null 2>&1; then
+  echo "Updating Homebrew formulae..."
+  brew bump-formula-pr --no-audit --tag=${TAG} --revision=${COMMIT} aws-creds
 else
-    echo "'brew' binary is not available."
-    echo "Please make a manual formulae update."
-    cat <<MESSAGE
+  echo "'brew' binary is not available."
+  echo "Please make a manual formulae update."
+  cat <<MESSAGE
 Instructions:
 
     open       https://github.com/bees-hive/homebrew-hive/blob/main/Formula/aws-creds.rb#L4

@@ -135,16 +135,41 @@ def _identity_center_scan(ic: IdentityCenter) -> None:
 
 
 def _connect(ic: IdentityCenter, account_id: str, role: str) -> None:
-    role_creds = (
-        Session()
-        .create_client("sso", region_name=ic.ic_region)
-        .get_role_credentials(roleName=role, accountId=account_id, accessToken=_token(ic))["roleCredentials"]
-    )
+    sso = Session().create_client("sso", region_name=ic.ic_region)
+    token = _token(ic)
+    role_creds = sso.get_role_credentials(roleName=role, accountId=account_id, accessToken=token)["roleCredentials"]
+    account_name = ""
+    for account in sso.list_accounts(accessToken=token, maxResults=100)["accountList"]:
+        if account["accountId"] != account_id:
+            continue
+        account_name = account["accountName"]
+        break
+    print('export AWS_CREDS_SESSION_TYPE="ic"', file=sys.stdout)
+    print(f'export AWS_CREDS_ACCOUNT_NAME="{account_name}"', file=sys.stdout)
+    print(f'export AWS_CREDS_ACCOUNT_ID="{account_id}"', file=sys.stdout)
+    print(f'export AWS_CREDS_ROLE_NAME="{role}"', file=sys.stdout)
     print(f'export AWS_DEFAULT_REGION="{ic.ic_region}"', file=sys.stdout)
     print(f'export AWS_ACCESS_KEY_ID="{role_creds["accessKeyId"]}"', file=sys.stdout)
     print(f'export AWS_SECRET_ACCESS_KEY="{role_creds["secretAccessKey"]}"', file=sys.stdout)
     print(f'export AWS_SESSION_TOKEN="{role_creds["sessionToken"]}"', file=sys.stdout)
     print("AWS environment variables are exported!", file=sys.stderr)
+
+
+def _describe_credentials() -> None:
+    sessiont_type = os.getenv("AWS_CREDS_SESSION_TYPE")
+    if sessiont_type == "ic":
+        print("Auth type:  AWS IAM Identity Center", file=sys.stderr)
+        print(
+            "Account  :  {} ({})".format(
+                os.getenv("AWS_CREDS_ACCOUNT_NAME"),
+                os.getenv("AWS_CREDS_ACCOUNT_ID"),
+            ),
+            file=sys.stderr,
+        )
+        print("Used role: ", os.getenv("AWS_CREDS_ROLE_NAME"), file=sys.stderr)
+
+    else:
+        print(f"Cannot find AWS credentials configured by {_prog}.", file=sys.stderr)
 
 
 def main():
@@ -158,8 +183,8 @@ def main():
         "scan-ic",
         description="""
         The command generates login aliases for each role available in the AWS IAM Identity Center.
-         The aliases should be saved to the to relevant shell configuration file.
-         """,
+        The aliases should be saved to the to relevant shell configuration file.
+        """,
         help="generates shell authentication aliases for an AWS Identity Center",
         formatter_class=lambda prog: HelpFormatter(prog, width=72),
     )
@@ -170,8 +195,8 @@ def main():
         "session-ic",
         description="""
         The command exports the environment variables suitable for authenticating CLI tools
-         by creating a AWS login sessing based on the AWS Identity Center role.
-         """,
+        by creating a AWS login sessing based on the AWS Identity Center role.
+        """,
         help="authenticates an AWS Identity Center role",
         formatter_class=lambda prog: HelpFormatter(prog, width=72),
     )
@@ -179,6 +204,14 @@ def main():
     session_parser.add_argument("ic_region", help="AWS IAM Identity Center region")
     session_parser.add_argument("account_id", help="Account ID")
     session_parser.add_argument("role_name", help="Role")
+
+    session_parser = subparsers.add_parser(
+        "describe-creds",
+        description="""
+            The command describes the current credentials if available.""",
+        help="describes the current credentials if available",
+        formatter_class=lambda prog: HelpFormatter(prog, width=72),
+    )
 
     args = parser.parse_args()
 
@@ -190,8 +223,11 @@ def main():
             args.account_id,
             args.role_name,
         )
+        _describe_credentials()
+    elif args.subcommand == "describe-creds":
+        _describe_credentials()
     else:
-        parser.print_help()
+        _describe_credentials()
 
 
 if __name__ == "__main__":
