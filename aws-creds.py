@@ -77,12 +77,14 @@ def _new_session_token(identity_center: IdentityCenter) -> str:
         message = code_line + f" (awaiting {n} seconds)"
         print(message, end="\r", file=sys.stderr)
         try:
-            return sso_oidc.create_token(
+            response = sso_oidc.create_token(
                 grantType="urn:ietf:params:oauth:grant-type:device_code",
                 deviceCode=device_code,
                 clientId=client_creds["clientId"],
                 clientSecret=client_creds["clientSecret"],
-            )["accessToken"]
+            )
+            print(" " * len(message), end="\r", file=sys.stderr)
+            return response["accessToken"]
         except sso_oidc.exceptions.AuthorizationPendingException:
             pass
 
@@ -100,6 +102,7 @@ def _new_token(identity_center: IdentityCenter) -> str:
 
 
 def _token(identity_center: IdentityCenter) -> str:
+    print("AWS IAM Identity Center URL: ", identity_center.ic_start_url, file=sys.stderr)  # noqa: F821
     while True:
         if identity_center.cache_file().exists():
             print("Previous session found...", file=sys.stderr)
@@ -122,6 +125,7 @@ def _token(identity_center: IdentityCenter) -> str:
 def _identity_center_scan(ic: IdentityCenter) -> None:
     sso = Session().create_client("sso", region_name=ic.ic_region)
     token = _token(ic)
+    print("Generated shell aliases:", file=sys.stdout)
     for account in sso.list_accounts(accessToken=token, maxResults=100)["accountList"]:
         account_name = account["accountName"]
         account_id = account["accountId"]
@@ -172,46 +176,76 @@ def _describe_credentials() -> None:
         print(f"Cannot find AWS credentials configured by {_prog}.", file=sys.stderr)
 
 
+def _scan_local():
+    local_config = Session().full_config
+    print("Scanning the local AWS config files...\n", file=sys.stdout)
+    for key, details in local_config.get("sso_sessions", {}).items():
+        print(
+            f"The '{key}' AWS IAM Identity Center identified: {details['sso_start_url']} ({details['sso_region']})",
+            file=sys.stdout,
+        )
+        if "y" in input("Do you want to generate shell aliases? y/n ").lower():
+            _identity_center_scan(IdentityCenter(details["sso_start_url"], details["sso_region"]))
+            print("The aliases are generated. Continue the scanning...\n", file=sys.stdout)
+        else:
+            print(f"The '{key}' was ignored. Continue the scanning...\n", file=sys.stdout)
+    for key, details in local_config.get("profiles", {}).items():
+        if "sso_session" in details:
+            continue
+        print(f"The '{key}' AWS profile identified. Not supported yet...\n", file=sys.stderr)
+
+
 def main():
     parser = ArgumentParser(
         description="Painless CLI authentication using various AWS identities.",
         prog=_prog,
-        formatter_class=lambda prog: HelpFormatter(prog, width=72),
+        formatter_class=lambda prog: HelpFormatter(prog, width=100),
     )
     subparsers = parser.add_subparsers(title="Commands", dest="subcommand")
-    scan_parser = subparsers.add_parser(
+
+    subparsers.add_parser(
+        "describe-creds",
+        description="""
+            The command describes the AWS credentials in the currrent shell session if available.""",
+        help="describes the AWS credentials in the currrent shell session",
+        formatter_class=lambda prog: HelpFormatter(prog, width=100),
+    )
+
+    subparsers.add_parser(
+        "scan-local",
+        description=f"""
+            The command runs an interactive '{_prog}’ shell aliases creation based on
+            the local AWS CLI config.
+            """,
+        help="generates shell aliases for the local AWS CLI configuration",
+        formatter_class=lambda prog: HelpFormatter(prog, width=100),
+    )
+
+    scan_ic = subparsers.add_parser(
         "scan-ic",
         description="""
         The command generates login aliases for each role available in the AWS IAM Identity Center.
         The aliases should be saved to the to relevant shell configuration file.
         """,
-        help="generates shell authentication aliases for an AWS Identity Center",
-        formatter_class=lambda prog: HelpFormatter(prog, width=72),
+        help="generates shell aliases for an AWS IAM Identity Center",
+        formatter_class=lambda prog: HelpFormatter(prog, width=100),
     )
-    scan_parser.add_argument("ic_start_url", help="AWS IAM Identity Center start URL")
-    scan_parser.add_argument("ic_region", help="AWS IAM Identity Center region")
+    scan_ic.add_argument("ic_start_url", help="AWS IAM Identity Center start URL")
+    scan_ic.add_argument("ic_region", help="AWS IAM Identity Center region")
 
-    session_parser = subparsers.add_parser(
+    session_ic = subparsers.add_parser(
         "session-ic",
         description="""
         The command exports the environment variables suitable for authenticating CLI tools
-        by creating a AWS login sessing based on the AWS Identity Center role.
+        by creating a AWS login sessing based on the AWS IAM Identity Center role.
         """,
         help="authenticates an AWS Identity Center role",
-        formatter_class=lambda prog: HelpFormatter(prog, width=72),
+        formatter_class=lambda prog: HelpFormatter(prog, width=100),
     )
-    session_parser.add_argument("ic_start_url", help="AWS IAM Identity Center start URL")
-    session_parser.add_argument("ic_region", help="AWS IAM Identity Center region")
-    session_parser.add_argument("account_id", help="Account ID")
-    session_parser.add_argument("role_name", help="Role")
-
-    session_parser = subparsers.add_parser(
-        "describe-creds",
-        description="""
-            The command describes the current credentials if available.""",
-        help="describes the current credentials if available",
-        formatter_class=lambda prog: HelpFormatter(prog, width=72),
-    )
+    session_ic.add_argument("ic_start_url", help="AWS IAM Identity Center start URL")
+    session_ic.add_argument("ic_region", help="AWS IAM Identity Center region")
+    session_ic.add_argument("account_id", help="Account ID")
+    session_ic.add_argument("role_name", help="Role")
 
     args = parser.parse_args()
 
@@ -226,6 +260,8 @@ def main():
         _describe_credentials()
     elif args.subcommand == "describe-creds":
         _describe_credentials()
+    elif args.subcommand == "scan-local":
+        _scan_local()
     else:
         _describe_credentials()
 
