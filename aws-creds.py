@@ -157,23 +157,21 @@ def _connect(ic: IdentityCenter, account_id: str, role: str) -> None:
     print(f'export AWS_SECRET_ACCESS_KEY="{role_creds["secretAccessKey"]}"', file=sys.stdout)
     print(f'export AWS_SESSION_TOKEN="{role_creds["sessionToken"]}"', file=sys.stdout)
     print("AWS environment variables are exported!", file=sys.stderr)
+    _print_ic_information(account_name, account_id)
+
+
+def _print_ic_information(accunt_name: str, account_id: str) -> None:
+    print("Auth type:  AWS IAM Identity Center", file=sys.stderr)
+    print(f"Account  :  {accunt_name} ({account_id})", file=sys.stderr)  # noqa: E999
+    print("Used role: ", os.getenv("AWS_CREDS_ROLE_NAME"), file=sys.stderr)
 
 
 def _describe_credentials() -> None:
     sessiont_type = os.getenv("AWS_CREDS_SESSION_TYPE")
     if sessiont_type == "ic":
-        print("Auth type:  AWS IAM Identity Center", file=sys.stderr)
-        print(
-            "Account  :  {} ({})".format(
-                os.getenv("AWS_CREDS_ACCOUNT_NAME"),
-                os.getenv("AWS_CREDS_ACCOUNT_ID"),
-            ),
-            file=sys.stderr,
-        )
-        print("Used role: ", os.getenv("AWS_CREDS_ROLE_NAME"), file=sys.stderr)
-
+        _print_ic_information(os.getenv("AWS_CREDS_ACCOUNT_NAME"), os.getenv("AWS_CREDS_ACCOUNT_ID"))
     else:
-        print(f"Cannot find AWS credentials configured by {_prog}.", file=sys.stderr)
+        print(f"Cannot find AWS credentials configured by '{_prog}'.", file=sys.stderr)
 
 
 def _scan_local():
@@ -257,7 +255,6 @@ def main():
             args.account_id,
             args.role_name,
         )
-        _describe_credentials()
     elif args.subcommand == "describe-creds":
         _describe_credentials()
     elif args.subcommand == "scan-local":
