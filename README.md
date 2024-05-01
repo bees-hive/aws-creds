@@ -17,7 +17,12 @@ requested commands.
 ## Installation
 
 The latest version can be installed using the following command:
-`curl -sSL https://raw.githubusercontent.com/bees-hive/aws-creds/main/install.sh | bash`
+```shell
+# install to the '/usr/local/bin' directory
+curl -sSL https://raw.githubusercontent.com/bees-hive/aws-creds/main/install.sh | bash
+# install to the custom directory
+curl -sSL https://raw.githubusercontent.com/bees-hive/aws-creds/main/install.sh | INSTALL_DIR=/some/path bash
+```
 
 For Brew users, just run `brew install bees-hive/hive/aws-creds`.
 

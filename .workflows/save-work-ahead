@@ -4,7 +4,11 @@ set -o errexit
 set -o pipefail
 cd "$(git rev-parse --show-toplevel)"
 
+echo "Verifying 'aws-creds.py'..."
 which -s ruff || (echo "ruff is not installed" && exit 1)
 ruff check --config line-length=120 --fix aws-creds.py ||
   ruff check --config line-length=120 --add-noqa aws-creds.py
 ruff format --config line-length=120 aws-creds.py
+
+echo "Verifying 'install.sh'..."
+cat install.sh | INSTALL_DIR=.install bash
