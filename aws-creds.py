@@ -157,19 +157,21 @@ def _connect(ic: IdentityCenter, account_id: str, role: str) -> None:
     print(f'export AWS_SECRET_ACCESS_KEY="{role_creds["secretAccessKey"]}"', file=sys.stdout)
     print(f'export AWS_SESSION_TOKEN="{role_creds["sessionToken"]}"', file=sys.stdout)
     print("AWS environment variables are exported!", file=sys.stderr)
-    _print_ic_information(account_name, account_id)
+    _print_ic_information(account_name, account_id, role)
 
 
-def _print_ic_information(accunt_name: str, account_id: str) -> None:
+def _print_ic_information(accunt_name: str, account_id: str, role_name: str) -> None:
     print("Auth type:  AWS IAM Identity Center", file=sys.stderr)
     print(f"Account  :  {accunt_name} ({account_id})", file=sys.stderr)  # noqa: E999
-    print("Used role: ", os.getenv("AWS_CREDS_ROLE_NAME"), file=sys.stderr)
+    print("Used role: ", role_name, file=sys.stderr)
 
 
 def _describe_credentials() -> None:
     sessiont_type = os.getenv("AWS_CREDS_SESSION_TYPE")
     if sessiont_type == "ic":
-        _print_ic_information(os.getenv("AWS_CREDS_ACCOUNT_NAME"), os.getenv("AWS_CREDS_ACCOUNT_ID"))
+        _print_ic_information(
+            os.getenv("AWS_CREDS_ACCOUNT_NAME"), os.getenv("AWS_CREDS_ACCOUNT_ID"), os.getenv("AWS_CREDS_ROLE_NAME")
+        )
     else:
         print(f"Cannot find AWS credentials configured by '{_prog}'.", file=sys.stderr)
 
