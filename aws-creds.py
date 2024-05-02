@@ -54,7 +54,7 @@ class IdentityCenter:
 
 def _new_session_token(identity_center: IdentityCenter) -> str:
     sso_oidc = Session().create_client("sso-oidc", region_name=identity_center.ic_region)
-    client_creds = sso_oidc.register_client(clientName="myapp", clientType="public")
+    client_creds = sso_oidc.register_client(clientName=_prog, clientType="public", scopes=["sso:account:access"])
     device_authorization = sso_oidc.start_device_authorization(
         clientId=client_creds["clientId"],
         clientSecret=client_creds["clientSecret"],
