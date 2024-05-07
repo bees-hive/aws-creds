@@ -1,8 +1,10 @@
 # AWS Credentials
 
 `aws-creds` configures your CLI access to AWS services by setting the environment variables in your shell based on
-- IAM Identity Center authentication; or
-- IAM user (access key and secret key) (work in progress).
+- IAM Identity Center credentials; or
+- IAM User credentials (access key)
+  - Automatic MFA support
+  - Assume role support is coming soon
 
 **How does it work?**
 
@@ -60,7 +62,7 @@ If the AWS CLI is installed and configured, you can convert the existing connect
 by running the `aws-creds scan` command. It runs an interactive alias generation process that allows you to decide
 which connections to convert.
 
-> Only AWS IAM Identity Center aliases are generated now.
+> No assumed roles are supported yet.
 
 ### `aws-creds scan-ic`
 
@@ -76,4 +78,9 @@ After successful authentication, it will export the AWS session environment vari
 ### `aws-creds session-ic`
 
 Any AWS IAM Identity Center-related alias uses this command to authenticate the AWS session.
+You should not use it directly, but it is available for manual use.
+
+### `aws-creds session-access-key`
+
+Any IAM User credentials (access key)-related alias uses this command to authenticate the AWS session.
 You should not use it directly, but it is available for manual use.

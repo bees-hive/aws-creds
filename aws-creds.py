@@ -5,6 +5,7 @@ from argparse import ArgumentParser, HelpFormatter
 from hashlib import sha1
 import os
 import sys
+from typing import Dict
 
 _prog = Path(__file__).name.split(".")[0]
 _dependencies_home = Path.home().joinpath(".cache").joinpath(_prog)
@@ -140,7 +141,8 @@ def _print_identity_center_alias(
     print(
         f"{account_name}-{role_name}".lower().replace(" ", "-").replace(".", ""),
         "() {\n",
-        f'  eval "$(\n' f"    {_prog} session-ic \\\n",
+        '  eval "$(\n',
+        f"    {_prog} session-ic \\\n",
         f"      --ic-start-url {ic.ic_start_url} \\\n",
         f"      --ic-region {ic.ic_region} \\\n",
         f"      --account-id {account_id} \\\n",
@@ -151,7 +153,7 @@ def _print_identity_center_alias(
     )
 
 
-def _connect(ic: IdentityCenter, account_id: str, role: str) -> None:
+def _session_ic(ic: IdentityCenter, account_id: str, role: str) -> None:
     sso = Session().create_client("sso", region_name=ic.ic_region)
     token = _token(ic)
     role_creds = sso.get_role_credentials(roleName=role, accountId=account_id, accessToken=token)["roleCredentials"]
@@ -173,17 +175,107 @@ def _connect(ic: IdentityCenter, account_id: str, role: str) -> None:
     _print_ic_information(account_name, account_id, role)
 
 
-def _print_ic_information(accunt_name: str, account_id: str, role_name: str) -> None:
+def _print_ic_information(account_name: str, account_id: str, role_name: str) -> None:
     print("Auth type:  AWS IAM Identity Center", file=sys.stderr)
-    print(f"Account  :  {accunt_name} ({account_id})", file=sys.stderr)  # noqa: E999
+    print(f"Account  :  {account_name} ({account_id})", file=sys.stderr)  # noqa: E999
     print("Used role: ", role_name, file=sys.stderr)
 
 
+def _access_key(name: str, access_key: str, secret_key: str, region: str) -> None:
+    try:
+        arn = (
+            Session()
+            .create_client("sts", aws_access_key_id=access_key, aws_secret_access_key=secret_key, region_name=region)
+            .get_caller_identity()["Arn"]
+        )
+    except Exception as error:  # botocore.exceptions.ClientError
+        if "The security token included in the request is invalid." in str(error):
+            print("Invalid access key or secret access key!", file=sys.stderr)
+            return
+        raise error
+    print(f"Generated shell alias (IAM user: '{arn.split(':user/')[-1]}'):", file=sys.stdout)
+    print(
+        f"{name}".lower().replace(" ", "-").replace(".", ""),
+        "() {\n",
+        '  eval "$(\n',
+        f"    {_prog} session-access-key \\\n",
+        f"      --session-name {name} \\\n",
+        f"      --access-key {access_key} \\\n",
+        f"      --secret-access-key {secret_key} \\\n",
+        f"      --region {region} \\\n",
+        '  )"\n}',
+        sep="",
+        file=sys.stdout,
+    )
+
+
+def _session_access_key(name: str, access_key: str, secret_key: str, region: str) -> None:
+    sts = Session().create_client(
+        "sts", aws_access_key_id=access_key, aws_secret_access_key=secret_key, region_name=region
+    )
+    try:
+        caller_identity = sts.get_caller_identity()
+    except Exception as error:  # botocore.exceptions.ClientError
+        if "The security token included in the request is invalid." in str(error):
+            print("Invalid access key or secret access key!", file=sys.stderr)
+            exit(1)
+        raise error
+    arn = caller_identity["Arn"]  # noqa: F841
+    account_id = caller_identity["Account"]
+    mfas: Dict[str, str] = {
+        mfa["SerialNumber"].split("/")[-1]: mfa["SerialNumber"]
+        for mfa in Session()
+        .create_client("iam", aws_access_key_id=access_key, aws_secret_access_key=secret_key, region_name=region)
+        .list_mfa_devices(UserName=arn.split("/")[-1])["MFADevices"]
+        if ":mfa/" in mfa["SerialNumber"]
+    }
+    if mfas:
+        if len(mfas) > 1:
+            mfa_name = ""
+            while mfa_name not in mfas.keys():
+                print("Multiple MFA devices found:", mfas.keys(), file=sys.stderr)
+                print("Type a name of the desired device: ", file=sys.stderr, end="")
+                mfa_name = input()
+        else:
+            mfa_name = list(mfas.keys())[0]
+        print(f"Enter MFA code (device: {mfa_name}): ", file=sys.stderr, end="")
+        session_token = sts.get_session_token(SerialNumber=mfas[mfa_name], TokenCode=input())
+    else:
+        session_token = sts.get_session_token()
+    temp_credentials = session_token["Credentials"]
+    print('export AWS_CREDS_SESSION_TYPE="ak"', file=sys.stdout)
+    print(f'export AWS_CREDS_SESSION_NAME="{name}"', file=sys.stdout)
+    iam_user = arn.split(":user/")[-1]
+    print(f'export AWS_CREDS_USER_NAME="{iam_user}"', file=sys.stdout)
+    print(f'export AWS_CREDS_ACCOUNT_ID="{account_id}"', file=sys.stdout)
+    print(f'export AWS_ACCESS_KEY_ID="{temp_credentials["AccessKeyId"]}"', file=sys.stdout)
+    print(f'export AWS_SECRET_ACCESS_KEY="{temp_credentials["SecretAccessKey"]}"', file=sys.stdout)
+    print(f'export AWS_SESSION_TOKEN="{temp_credentials["SessionToken"]}"', file=sys.stdout)
+    print(f'export AWS_DEFAULT_REGION="{region}"', file=sys.stdout)
+    print("AWS environment variables are exported!", file=sys.stderr)
+    _print_access_key(name, iam_user, account_id, region)
+
+
+def _print_access_key(session_name: str, user: str, account_id: str, region: str) -> None:
+    print("Auth type:  AWS Access Key", file=sys.stderr)
+    print(f"Profile  :  {session_name}", file=sys.stderr)
+    print(f"IAM user :  {user}", file=sys.stderr)  # noqa: E999
+    print(f"Account  :  {account_id}", file=sys.stderr)  # noqa: E999
+    print(f"Region   :  {region}", file=sys.stderr)  # noqa: E999
+
+
 def _describe_credentials() -> None:
-    sessiont_type = os.getenv("AWS_CREDS_SESSION_TYPE")
-    if sessiont_type == "ic":
+    session_type = os.getenv("AWS_CREDS_SESSION_TYPE", "")
+    if session_type == "ic":
         _print_ic_information(
             os.getenv("AWS_CREDS_ACCOUNT_NAME"), os.getenv("AWS_CREDS_ACCOUNT_ID"), os.getenv("AWS_CREDS_ROLE_NAME")
+        )
+    elif session_type == "ak":
+        _print_access_key(
+            os.getenv("AWS_CREDS_SESSION_NAME"),
+            os.getenv("AWS_CREDS_USER_NAME"),
+            os.getenv("AWS_CREDS_ACCOUNT_ID"),
+            os.getenv("AWS_DEFAULT_REGION"),
         )
     else:
         print(f"Cannot find AWS credentials configured by '{_prog}'.", file=sys.stderr)
@@ -191,21 +283,26 @@ def _describe_credentials() -> None:
 
 def _scan_local():
     local_config = Session().full_config
-    print("Scanning the local AWS config files...\n", file=sys.stdout)
+    print("Scanning the local AWS config files...", file=sys.stdout)
     for key, details in local_config.get("sso_sessions", {}).items():
+        print("\nLooking for the next record...", file=sys.stdout)
         print(
             f"The '{key}' AWS IAM Identity Center identified: {details['sso_start_url']} ({details['sso_region']})",
             file=sys.stdout,
         )
         if "y" in input("Do you want to generate shell aliases? y/n ").lower():
             _identity_center_scan(IdentityCenter(details["sso_start_url"], details["sso_region"]))
-            print("The aliases are generated. Continue the scanning...\n", file=sys.stdout)
-        else:
-            print(f"The '{key}' was ignored. Continue the scanning...\n", file=sys.stdout)
     for key, details in local_config.get("profiles", {}).items():
         if "sso_session" in details:
             continue
-        print(f"The '{key}' AWS profile identified. Not supported yet...\n", file=sys.stderr)
+        print("\nLooking for the next record...", file=sys.stdout)
+        if "role_arn" in details:
+            print(f"The '{key}' AWS profile identified. Not supported yet...", file=sys.stderr)
+        else:
+            print(f"The '{key}' access key identified.", file=sys.stdout)
+            if "y" in input("Do you want to generate shell alias? y/n ").lower():
+                _access_key(key, details["aws_access_key_id"], details["aws_secret_access_key"], details["region"])
+    print("\nScanning completed!", file=sys.stdout)
 
 
 def main():
@@ -215,7 +312,7 @@ def main():
         identity_center = IdentityCenter(sys.argv[2], sys.argv[3])
         _print_identity_center_alias(identity_center, sys.argv[4], "account-name", sys.argv[5], file=sys.stderr)  # noqa: F821
         print("\n\n", file=sys.stderr)  # noqa: F821
-        _connect(identity_center, sys.argv[4], sys.argv[5])
+        _session_ic(identity_center, sys.argv[4], sys.argv[5])
         exit(0)
     parser = ArgumentParser(
         description="Painless CLI authentication using various AWS identities.",
@@ -226,8 +323,7 @@ def main():
 
     subparsers.add_parser(
         "describe-creds",
-        description="""
-            The command describes the AWS credentials in the current shell session if available.""",
+        description="The command describes the AWS credentials in the current shell session if available.",
         help="describes the AWS credentials in the current shell session",
         formatter_class=lambda prog: HelpFormatter(prog, width=100),
     )
@@ -258,7 +354,7 @@ def main():
         "session-ic",
         description="""
         The command exports the environment variables suitable for authenticating CLI tools
-        by creating a AWS login sessing based on the AWS IAM Identity Center role.
+        by creating a AWS login session based on the AWS IAM Identity Center role.
         """,
         help="authenticates an AWS Identity Center role",
         formatter_class=lambda prog: HelpFormatter(prog, width=100),
@@ -268,16 +364,29 @@ def main():
     session_ic.add_argument("--account-id", metavar="id", required=True, help="AWS Account ID")
     session_ic.add_argument("--role-name", metavar="name", required=True, help="Role name")
 
+    session_ic = subparsers.add_parser(
+        "session-access-key",
+        description="""
+            The command exports the environment variables suitable for authenticating CLI tools
+            by creating an AWS login session based on the Access Key and Secret Access Key.
+            It asks to provide an MFA code if there is an MFA device configured.
+            """,
+        help="authenticates an access key",
+        formatter_class=lambda prog: HelpFormatter(prog, max_help_position=35, width=100),
+    )
+    session_ic.add_argument("--session-name", metavar="name", required=True, help="A name")
+    session_ic.add_argument("--access-key", metavar="key", required=True, help="Access Key")
+    session_ic.add_argument("--secret-access-key", metavar="secret-key", required=True, help="Secret Access Key")
+    session_ic.add_argument("--region", metavar="region", required=True, help="AWS Region")
+
     args = parser.parse_args()
 
     if args.subcommand == "scan-ic":
         _identity_center_scan(IdentityCenter(args.ic_start_url, args.ic_region))
     elif args.subcommand == "session-ic":
-        _connect(
-            IdentityCenter(args.ic_start_url, args.ic_region),
-            args.account_id,
-            args.role_name,
-        )
+        _session_ic(IdentityCenter(args.ic_start_url, args.ic_region), args.account_id, args.role_name)
+    elif args.subcommand == "session-access-key":
+        _session_access_key(args.session_name, args.access_key, args.secret_access_key, args.region)
     elif args.subcommand == "describe-creds":
         _describe_credentials()
     elif args.subcommand == "scan-local":
