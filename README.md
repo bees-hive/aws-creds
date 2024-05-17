@@ -34,7 +34,7 @@ For Brew users, just run `brew install bees-hive/hive/aws-creds`.
 
 ```shell
 ~ aws-creds --help
-usage: aws-creds [-h] {describe-creds,scan-local,scan-ic,session-ic} ...
+usage: aws-creds [-h] {describe-creds,scan-local,scan-ic,session-ic,session-access-key} ...
 
 Painless CLI authentication using various AWS identities.
 
@@ -42,11 +42,12 @@ options:
   -h, --help            show this help message and exit
 
 Commands:
-  {describe-creds,scan-local,scan-ic,session-ic}
+  {describe-creds,scan-local,scan-ic,session-ic,session-access-key}
     describe-creds      describes the AWS credentials in the current shell session
     scan-local          generates shell aliases for the local AWS CLI configuration
     scan-ic             generates shell aliases for an AWS IAM Identity Center
     session-ic          authenticates an AWS Identity Center role
+    session-access-key  authenticates an access key
 ```
 
 Below you can find more detailed explanations of the commands.
