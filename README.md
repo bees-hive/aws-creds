@@ -41,11 +41,10 @@ options:
 
 Commands:
   {describe-creds,scan-local,scan-ic,session-ic}
-    describe-creds      describes the AWS credentials in the currrent shell session
+    describe-creds      describes the AWS credentials in the current shell session
     scan-local          generates shell aliases for the local AWS CLI configuration
     scan-ic             generates shell aliases for an AWS IAM Identity Center
     session-ic          authenticates an AWS Identity Center role
-
 ```
 
 Below you can find more detailed explanations of the commands.
@@ -55,7 +54,7 @@ Below you can find more detailed explanations of the commands.
 This command describes the current credentials by looking at the environment variables. It is configured as the default
 command, so you can run `aws-creds` without any arguments to see the current credentials.
 
-## `aws-creds scan-local`
+### `aws-creds scan-local`
 
 If the AWS CLI is installed and configured, you can convert the existing connections to the `aws-creds` aliases
 by running the `aws-creds scan` command. It runs an interactive alias generation process that allows you to decide
@@ -66,9 +65,12 @@ which connections to convert.
 ### `aws-creds scan-ic`
 
 If you have the AWS IAM Identity Center start URL (like `https://xxxxxx.awsapps.com/start`) and
-its region (like `us-east-1`), the `aws-creds scan-ic https://xxxxxx.awsapps.com/start us-east-1` command
-generates all possible login aliases for this AWS IAM Identity Center (AWS SSO). Pick those you want and save them
-to the shell configuration profile file. Once you run an alias, it will open the browser and ask you to authenticate.
+its region (like `us-east-1`), the
+```shell
+aws-creds scan-ic --ic-start-url https://xxxxxx.awsapps.com/start --ic-region us-east-1
+```
+command generates all possible login aliases for this AWS IAM Identity Center (AWS SSO). Pick those you want and save
+them to the shell configuration profile file. Once you run an alias, it will open the browser and ask you to authenticate.
 After successful authentication, it will export the AWS session environment variables to the current shell session.
 
 ### `aws-creds session-ic`

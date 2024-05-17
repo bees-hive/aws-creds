@@ -131,11 +131,24 @@ def _identity_center_scan(ic: IdentityCenter) -> None:
         account_id = account["accountId"]
         account_roles = sso.list_account_roles(accessToken=token, accountId=account_id)
         for role in account_roles["roleList"]:
-            print(
-                "alias "
-                + f"{account_name}-{role['roleName']}".lower().replace(" ", "-").replace(".", "")
-                + f"='eval \"$({_prog} session-ic {ic.ic_start_url} {ic.ic_region} {account_id} {role['roleName']})\"'"
-            )
+            _print_identity_center_alias(ic, account_id, account_name, role["roleName"])
+
+
+def _print_identity_center_alias(
+    ic: IdentityCenter, account_id: str, account_name: str, role_name: str, *, file=sys.stdout
+) -> None:
+    print(
+        f"{account_name}-{role_name}".lower().replace(" ", "-").replace(".", ""),
+        "() {\n",
+        f'  eval "$(\n' f"    {_prog} session-ic \\\n",
+        f"      --ic-start-url {ic.ic_start_url} \\\n",
+        f"      --ic-region {ic.ic_region} \\\n",
+        f"      --account-id {account_id} \\\n",
+        f"      --role-name {role_name}\n",
+        '  )"\n}',
+        sep="",
+        file=file,
+    )
 
 
 def _connect(ic: IdentityCenter, account_id: str, role: str) -> None:
@@ -196,6 +209,14 @@ def _scan_local():
 
 
 def main():
+    if len(sys.argv) == 6 and sys.argv[1] == "session-ic":
+        print(f"The positional arguments are deprecated for the `{_prog} session-ic`!", file=sys.stderr)  # noqa: F821
+        print("Please update the alias as follows:\n", file=sys.stderr)  # noqa: F821
+        identity_center = IdentityCenter(sys.argv[2], sys.argv[3])
+        _print_identity_center_alias(identity_center, sys.argv[4], "account-name", sys.argv[5], file=sys.stderr)  # noqa: F821
+        print("\n\n", file=sys.stderr)  # noqa: F821
+        _connect(identity_center, sys.argv[4], sys.argv[5])
+        exit(0)
     parser = ArgumentParser(
         description="Painless CLI authentication using various AWS identities.",
         prog=_prog,
@@ -206,8 +227,8 @@ def main():
     subparsers.add_parser(
         "describe-creds",
         description="""
-            The command describes the AWS credentials in the currrent shell session if available.""",
-        help="describes the AWS credentials in the currrent shell session",
+            The command describes the AWS credentials in the current shell session if available.""",
+        help="describes the AWS credentials in the current shell session",
         formatter_class=lambda prog: HelpFormatter(prog, width=100),
     )
 
@@ -230,8 +251,8 @@ def main():
         help="generates shell aliases for an AWS IAM Identity Center",
         formatter_class=lambda prog: HelpFormatter(prog, width=100),
     )
-    scan_ic.add_argument("ic_start_url", help="AWS IAM Identity Center start URL")
-    scan_ic.add_argument("ic_region", help="AWS IAM Identity Center region")
+    scan_ic.add_argument("--ic-start-url", metavar="URL", required=True, help="AWS IAM Identity Center start URL")
+    scan_ic.add_argument("--ic-region", metavar="region", required=True, help="AWS IAM Identity Center region")
 
     session_ic = subparsers.add_parser(
         "session-ic",
@@ -242,10 +263,10 @@ def main():
         help="authenticates an AWS Identity Center role",
         formatter_class=lambda prog: HelpFormatter(prog, width=100),
     )
-    session_ic.add_argument("ic_start_url", help="AWS IAM Identity Center start URL")
-    session_ic.add_argument("ic_region", help="AWS IAM Identity Center region")
-    session_ic.add_argument("account_id", help="Account ID")
-    session_ic.add_argument("role_name", help="Role")
+    session_ic.add_argument("--ic-start-url", metavar="URL", required=True, help="AWS IAM Identity Center start URL")
+    session_ic.add_argument("--ic-region", metavar="region", required=True, help="AWS IAM Identity Center region")
+    session_ic.add_argument("--account-id", metavar="id", required=True, help="AWS Account ID")
+    session_ic.add_argument("--role-name", metavar="name", required=True, help="Role name")
 
     args = parser.parse_args()
 
