@@ -460,7 +460,10 @@ def main():
 
     subparsers.add_parser(
         "describe-creds",
-        description="The command describes the AWS credentials in the current shell session if available.",
+        description=f"""
+        The command describes the AWS credentials in the current shell session by looking at the environment variables.
+        Besides, this command runs every time you run `{_prog}` without arguments.
+        """,
         help="describes the AWS credentials in the current shell session",
         formatter_class=lambda prog: HelpFormatter(prog, width=100),
     )
@@ -468,54 +471,71 @@ def main():
     subparsers.add_parser(
         "scan-local",
         description=f"""
-            The command runs an interactive '{_prog}’ shell aliases creation based on
-            the local AWS CLI config.
-            """,
+        The command runs an interactive workflow to create the `{_prog}` shell aliases based on the local AWS CLI config.
+        Pick those aliases you want and save them to your shell configuration profile file. Once you run an alias,
+        it will authenticate a session and export the AWS session environment variables to the current shell session.
+        """,
         help="generates shell aliases for the local AWS CLI configuration",
         formatter_class=lambda prog: HelpFormatter(prog, width=100),
     )
 
     scan_ic = subparsers.add_parser(
         "scan-ic",
-        description="""
-        The command generates login aliases for each role available in the AWS IAM Identity Center.
-        The aliases should be saved to the to relevant shell configuration file.
+        description=f"""
+        The command generates all possible `{_prog}` shell aliases for each role available in an AWS IAM Identity Center.
+        Pick those aliases you want and save them to your shell configuration profile file. Once you run an alias,
+        it will authenticate a session and export the AWS session environment variables to the current shell session.
         """,
         help="generates shell aliases for an AWS IAM Identity Center",
         formatter_class=lambda prog: HelpFormatter(prog, width=100),
     )
-    scan_ic.add_argument("--ic-start-url", metavar="URL", required=True, help="AWS IAM Identity Center start URL")
-    scan_ic.add_argument("--ic-region", metavar="region", required=True, help="AWS IAM Identity Center region")
+    scan_ic.add_argument(
+        "--ic-start-url",
+        metavar="URL",
+        required=True,
+        help="AWS IAM Identity Center start URL (like `https://xxxxxx.awsapps.com/start`)",
+    )
+    scan_ic.add_argument(
+        "--ic-region", metavar="region", required=True, help="AWS IAM Identity Center region (like `us-east-1`)"
+    )
 
     session_ic = subparsers.add_parser(
         "session-ic",
         description="""
-        The command exports the environment variables suitable for authenticating CLI tools
-        by creating a AWS login session based on the AWS IAM Identity Center role.
+        The command exports the environment variables suitable for authenticating CLI tools by creating an
+        AWS login session based on the AWS IAM Identity Center role. Any AWS IAM Identity Center alias will
+        use this command to authenticate.
         """,
         help="authenticates an AWS Identity Center role",
         formatter_class=lambda prog: HelpFormatter(prog, width=100),
     )
-    session_ic.add_argument("--ic-start-url", metavar="URL", required=True, help="AWS IAM Identity Center start URL")
-    session_ic.add_argument("--ic-region", metavar="region", required=True, help="AWS IAM Identity Center region")
+    session_ic.add_argument(
+        "--ic-start-url",
+        metavar="URL",
+        required=True,
+        help="AWS IAM Identity Center start URL (like `https://xxxxxx.awsapps.com/start`)",
+    )
+    session_ic.add_argument(
+        "--ic-region", metavar="region", required=True, help="AWS IAM Identity Center region (like `us-east-1`)"
+    )
     session_ic.add_argument("--account-id", metavar="id", required=True, help="AWS Account ID")
     session_ic.add_argument("--role-name", metavar="name", required=True, help="Role name")
 
-    session_ic = subparsers.add_parser(
+    session_ak = subparsers.add_parser(
         "session-access-key",
         description="""
-            The command exports the environment variables suitable for authenticating CLI tools
-            by creating an AWS login session based on the Access Key and Secret Access Key.
-            It asks to provide an MFA code if there is an MFA device configured.
-            """,
+        The command exports the environment variables suitable for authenticating CLI tools by creating
+        an AWS login session based on the AWS Access Key. It asks to provide an MFA code if an MFA device is configured.
+        Any AWS Access Key alias will use this command to authenticate.
+        """,
         help="authenticates an access key",
         formatter_class=lambda prog: HelpFormatter(prog, max_help_position=35, width=100),
     )
-    session_ic.add_argument("--session-name", metavar="name", required=True, help="A name")
-    session_ic.add_argument("--access-key", metavar="key", required=True, help="Access Key")
-    session_ic.add_argument("--secret-access-key", metavar="secret-key", required=True, help="Secret Access Key")
-    session_ic.add_argument("--region", metavar="region", required=True, help="AWS Region")
-    session_ic.add_argument("--assume-role-arn", metavar="role", required=False, help="A role to assume")
+    session_ak.add_argument("--session-name", metavar="name", required=True, help="A name")
+    session_ak.add_argument("--access-key", metavar="key", required=True, help="Access Key")
+    session_ak.add_argument("--secret-access-key", metavar="secret-key", required=True, help="Secret Access Key")
+    session_ak.add_argument("--region", metavar="region", required=True, help="AWS Region")
+    session_ak.add_argument("--assume-role-arn", metavar="role", required=False, help="A role to assume")
 
     args = parser.parse_args()
 

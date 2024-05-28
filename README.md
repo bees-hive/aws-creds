@@ -16,6 +16,14 @@ the configuration and exports the AWS session environment variables to the curre
 such as `aws`, `terraform`, `boto3`, and others will automatically use those variables while executing
 requested commands.
 
+After the successful authentication, the following AWS-related environment variables are set:
+- `AWS_ACCESS_KEY_ID`
+- `AWS_DEFAULT_REGION`
+- `AWS_SECRET_ACCESS_KEY`
+- `AWS_SESSION_TOKEN`
+
+Please visit [this AWS page](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html#envvars-list) for details.
+
 ## Installation
 
 The latest version can be installed using the following command:
@@ -30,8 +38,7 @@ For Brew users, just run `brew install bees-hive/hive/aws-creds`.
 
 ## Usage
 
-`aws-creds` has the following CLI interface:
-
+### `aws-creds`
 ```shell
 ~ aws-creds --help
 usage: aws-creds [-h] {describe-creds,scan-local,scan-ic,session-ic,session-access-key} ...
@@ -50,36 +57,80 @@ Commands:
     session-access-key  authenticates an access key
 ```
 
-Below you can find more detailed explanations of the commands.
-
 ### `aws-creds describe-creds`
+```shell
+~ aws-creds describe-creds --help
+usage: aws-creds describe-creds [-h]
 
-This command describes the current credentials by looking at the environment variables. It is configured as the default
-command, so you can run `aws-creds` without any arguments to see the current credentials.
+The command describes the AWS credentials in the current shell session by looking at the environment
+variables. Besides, this command runs every time you run `aws-creds` without arguments.
 
+options:
+  -h, --help  show this help message and exit
+```
 ### `aws-creds scan-local`
+```shell
+~ aws-creds scan-local --help
+usage: aws-creds scan-local [-h]
 
-If the AWS CLI is installed and configured, you can convert the existing connections to the `aws-creds` aliases
-by running the `aws-creds scan` command. It runs an interactive alias generation process that allows you to decide
-which connections to convert.
+The command runs an interactive workflow to create the `aws-creds` shell aliases based on the local
+AWS CLI config. Pick those aliases you want and save them to your shell configuration profile file.
+Once you run an alias, it will authenticate a session and export the AWS session environment
+variables to the current shell session.
+
+options:
+  -h, --help  show this help message and exit
+```
 
 ### `aws-creds scan-ic`
-
-If you have the AWS IAM Identity Center start URL (like `https://xxxxxx.awsapps.com/start`) and
-its region (like `us-east-1`), the
 ```shell
-aws-creds scan-ic --ic-start-url https://xxxxxx.awsapps.com/start --ic-region us-east-1
+~ aws-creds scan-ic --help
+usage: aws-creds scan-ic [-h] --ic-start-url URL --ic-region region
+
+The command generates all possible `aws-creds` shell aliases for each role available in an AWS IAM
+Identity Center. Pick those aliases you want and save them to your shell configuration profile file.
+Once you run an alias, it will authenticate a session and export the AWS session environment
+variables to the current shell session.
+
+options:
+  -h, --help          show this help message and exit
+  --ic-start-url URL  AWS IAM Identity Center start URL (like `https://xxxxxx.awsapps.com/start`)
+  --ic-region region  AWS IAM Identity Center region (like `us-east-1`)
 ```
-command generates all possible login aliases for this AWS IAM Identity Center (AWS SSO). Pick those you want and save
-them to the shell configuration profile file. Once you run an alias, it will open the browser and ask you to authenticate.
-After successful authentication, it will export the AWS session environment variables to the current shell session.
 
 ### `aws-creds session-ic`
+```shell
+~ aws-creds session-ic --help
+usage: aws-creds session-ic [-h] --ic-start-url URL --ic-region region --account-id id --role-name
+                            name
 
-Any AWS IAM Identity Center-related alias uses this command to authenticate the AWS session.
-You should not use it directly, but it is available for manual use.
+The command exports the environment variables suitable for authenticating CLI tools by creating an
+AWS login session based on the AWS IAM Identity Center role. Any AWS IAM Identity Center alias will
+use this command to authenticate.
+
+options:
+  -h, --help          show this help message and exit
+  --ic-start-url URL  AWS IAM Identity Center start URL (like `https://xxxxxx.awsapps.com/start`)
+  --ic-region region  AWS IAM Identity Center region (like `us-east-1`)
+  --account-id id     AWS Account ID
+  --role-name name    Role name
+```
 
 ### `aws-creds session-access-key`
+```shell
+~ aws-creds session-access-key --help
+usage: aws-creds session-access-key [-h] --session-name name --access-key key --secret-access-key
+                                    secret-key --region region [--assume-role-arn role]
 
-Any IAM User credentials (access key)-related alias uses this command to authenticate the AWS session.
-You should not use it directly, but it is available for manual use.
+The command exports the environment variables suitable for authenticating CLI tools by creating an
+AWS login session based on the AWS Access Key. It asks to provide an MFA code if an MFA device is
+configured. Any AWS Access Key alias will use this command to authenticate.
+
+options:
+  -h, --help                      show this help message and exit
+  --session-name name             A name
+  --access-key key                Access Key
+  --secret-access-key secret-key  Secret Access Key
+  --region region                 AWS Region
+  --assume-role-arn role          A role to assume
+```
