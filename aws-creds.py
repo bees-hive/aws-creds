@@ -88,8 +88,10 @@ def _new_session_token(identity_center: IdentityCenter) -> str:
     interval = device_authorization["interval"]
     import webbrowser
 
+    print("Opening a browser to authenticate...", file=sys.stderr)
+    print(f"Verification URL: {url}", file=sys.stderr)
     webbrowser.open(url, autoraise=True)
-    code_line = "Authorization code: " + device_authorization["userCode"]
+    code_line = "Verification code: " + device_authorization["userCode"]
     print(code_line, end="\r", file=sys.stderr)
     from time import sleep
 
@@ -190,7 +192,7 @@ def _session_ic(ic: IdentityCenter, account_id: str, role: str) -> None:
     print(f'export AWS_ACCESS_KEY_ID="{role_creds["accessKeyId"]}"', file=sys.stdout)
     print(f'export AWS_SECRET_ACCESS_KEY="{role_creds["secretAccessKey"]}"', file=sys.stdout)
     print(f'export AWS_SESSION_TOKEN="{role_creds["sessionToken"]}"', file=sys.stdout)
-    print("AWS environment variables are exported!", file=sys.stderr)
+    print("AWS environment variables are exported!\n", file=sys.stderr)
     _print_ic_information(account_name, account_id, role)
 
 
@@ -298,7 +300,7 @@ class _AssumeRole(_Auth):
         print(f'export AWS_SECRET_ACCESS_KEY="{temp_credentials["SecretAccessKey"]}"', file=sys.stdout)
         print(f'export AWS_SESSION_TOKEN="{temp_credentials["SessionToken"]}"', file=sys.stdout)
         print(f'export AWS_DEFAULT_REGION="{self._region}"', file=sys.stdout)
-        print("AWS environment variables are exported!", file=sys.stderr)
+        print("AWS environment variables are exported!\n", file=sys.stderr)
         _print_assume_role(self._session_name, self._user_name, self._account_id, self._region, self._role_arn)
 
 
@@ -332,7 +334,7 @@ class _AccessKey(_Auth):
         print(f'export AWS_SECRET_ACCESS_KEY="{temp_credentials["SecretAccessKey"]}"', file=sys.stdout)
         print(f'export AWS_SESSION_TOKEN="{temp_credentials["SessionToken"]}"', file=sys.stdout)
         print(f'export AWS_DEFAULT_REGION="{self._region}"', file=sys.stdout)
-        print("AWS environment variables are exported!", file=sys.stderr)
+        print("AWS environment variables are exported!\n", file=sys.stderr)
         _print_access_key(self._session_name, self._user_name, self._account_id, self._region)
 
 
