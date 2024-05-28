@@ -6,7 +6,7 @@ from argparse import ArgumentParser, HelpFormatter
 from hashlib import sha1
 import os
 import sys
-from typing import Dict, Optional
+from typing import Dict, Optional, Literal, TextIO
 
 _prog = Path(__file__).name.split(".")[0]
 _dependencies_home = Path.home().joinpath(".cache").joinpath(_prog)
@@ -45,6 +45,23 @@ pip_wtf("boto3==1.34.40")
 from botocore.session import Session  # noqa: E402
 
 
+class Printer:
+    def __init__(self, mode: Literal["realtime", "end"], out_file: TextIO) -> None:
+        self._mode = mode
+        self._messages = []
+        self._out_file = out_file
+
+    def append(self, message: str) -> None:
+        if self._mode == "realtime":
+            print(message, file=self._out_file)
+        self._messages.append(message)
+
+    def print_all(self, /, always: bool = False) -> None:
+        if self._mode == "end" or always:
+            for message in self._messages:
+                print(message, file=self._out_file)
+
+
 @dataclass
 class IdentityCenter:
     ic_start_url: str
@@ -52,6 +69,9 @@ class IdentityCenter:
 
     def cache_file(self) -> Path:
         return _dependencies_home.joinpath(f".ic.{sha1(bytes(self.ic_start_url, 'utf-8')).hexdigest()}")
+
+    def __str__(self) -> str:
+        return f"AWS IAM Identity Center ({self.ic_start_url}, {self.ic_region})"
 
 
 def _new_session_token(identity_center: IdentityCenter) -> str:
@@ -104,13 +124,12 @@ def _new_token(identity_center: IdentityCenter) -> str:
 
 
 def _token(identity_center: IdentityCenter) -> str:
-    print("AWS IAM Identity Center URL: ", identity_center.ic_start_url, file=sys.stderr)  # noqa: F821
     while True:
         if identity_center.cache_file().exists():
-            print("Previous session found...", file=sys.stderr)
+            print("Previous AWS IAM Identity Center session found...", file=sys.stderr)
             access_token = _cached_token(identity_center.cache_file())
         else:
-            print("Initializing new session...", file=sys.stderr)
+            print("Initializing new AWS IAM Identity Center session...", file=sys.stderr)
             access_token = _new_token(identity_center)
         try:
             Session().create_client("sso", region_name=identity_center.ic_region).list_accounts(
@@ -121,36 +140,35 @@ def _token(identity_center: IdentityCenter) -> str:
             if "UnauthorizedException" not in str(error):
                 raise error
             identity_center.cache_file().unlink()
-            print("Previous session expired...", file=sys.stderr)
+            print("Previous AWS IAM Identity Center session expired...", file=sys.stderr)
 
 
-def _identity_center_scan(ic: IdentityCenter) -> None:
+def _identity_center_scan(ic: IdentityCenter, printer: Printer) -> None:
     sso = Session().create_client("sso", region_name=ic.ic_region)
     token = _token(ic)
-    print("Generated shell aliases:", file=sys.stdout)
+    printer.append(f"# {ic}")
     for account in sso.list_accounts(accessToken=token, maxResults=100)["accountList"]:
         account_name = account["accountName"]
         account_id = account["accountId"]
         account_roles = sso.list_account_roles(accessToken=token, accountId=account_id)
         for role in account_roles["roleList"]:
-            _print_identity_center_alias(ic, account_id, account_name, role["roleName"])
+            _print_identity_center_alias(printer, ic, account_id, account_name, role["roleName"])
 
 
 def _print_identity_center_alias(
-    ic: IdentityCenter, account_id: str, account_name: str, role_name: str, *, file=sys.stdout
+    printer: Printer, ic: IdentityCenter, account_id: str, account_name: str, role_name: str
 ) -> None:
-    print(
-        f"{account_name}-{role_name}".lower().replace(" ", "-").replace(".", ""),
-        "() {\n",
-        '  eval "$(\n',
-        f"    {_prog} session-ic \\\n",
-        f"      --ic-start-url {ic.ic_start_url} \\\n",
-        f"      --ic-region {ic.ic_region} \\\n",
-        f"      --account-id {account_id} \\\n",
-        f"      --role-name {role_name}\n",
-        '  )"\n}',
-        sep="",
-        file=file,
+    printer.append(
+        f"{account_name}-{role_name}".lower().replace(" ", "-").replace(".", "")
+        + "() {\n"
+        + '  eval "$(\n'
+        + f"    {_prog} session-ic \\\n"
+        + f"      --ic-start-url {ic.ic_start_url} \\\n"
+        + f"      --ic-region {ic.ic_region} \\\n"
+        + f"      --account-id {account_id} \\\n"
+        + f"      --role-name {role_name}\n"
+        + '  )"\n'
+        + "}"
     )
 
 
@@ -182,60 +200,60 @@ def _print_ic_information(account_name: str, account_id: str, role_name: str) ->
     print("Used role: ", role_name, file=sys.stderr)
 
 
-def _access_key(name: str, access_key: str, secret_key: str, region: str) -> None:
+def _access_key(name: str, access_key: str, secret_key: str, region: str, printer: Printer) -> None:
     try:
-        arn = (
+        identity = (
             Session()
             .create_client("sts", aws_access_key_id=access_key, aws_secret_access_key=secret_key, region_name=region)
-            .get_caller_identity()["Arn"]
+            .get_caller_identity()
         )
     except Exception as error:  # botocore.exceptions.ClientError
         if "The security token included in the request is invalid." in str(error):
             print("Invalid access key or secret access key!", file=sys.stderr)
             return
         raise error
-    print(f"Generated shell alias (IAM user: '{arn.split(':user/')[-1]}'):", file=sys.stdout)
-    print(
-        f"{name}".lower().replace(" ", "-").replace(".", ""),
-        "() {\n",
-        '  eval "$(\n',
-        f"    {_prog} session-access-key \\\n",
-        f"      --session-name {name} \\\n",
-        f"      --access-key {access_key} \\\n",
-        f"      --secret-access-key {secret_key} \\\n",
-        f"      --region {region} \\\n",
-        '  )"\n}',
-        sep="",
-        file=sys.stdout,
+    printer.append(f"# IAM user ({identity['Arn'].split(':user/')[-1]}) at {name} ({identity['Account']}) account")
+    printer.append(
+        f"{name}".lower().replace(" ", "-").replace(".", "")
+        + "() {\n"
+        + '  eval "$(\n'
+        + f"    {_prog} session-access-key \\\n"
+        + f"      --session-name {name} \\\n"
+        + f"      --access-key {access_key} \\\n"
+        + f"      --secret-access-key {secret_key} \\\n"
+        + f"      --region {region} \\\n"
+        + '  )"\n}'
     )
 
 
-def _access_key_assume_role(name: str, access_key: str, secret_key: str, region: str, role_arn: str) -> None:
+def _access_key_assume_role(
+    name: str, access_key: str, secret_key: str, region: str, role_arn: str, printer: Printer
+) -> None:
     try:
-        arn = (
+        identity = (
             Session()
             .create_client("sts", aws_access_key_id=access_key, aws_secret_access_key=secret_key, region_name=region)
-            .get_caller_identity()["Arn"]
+            .get_caller_identity()
         )
     except Exception as error:  # botocore.exceptions.ClientError
         if "The security token included in the request is invalid." in str(error):
             print("Invalid access key or secret access key!", file=sys.stderr)
             return
         raise error
-    print(f"Generated shell alias (IAM user: '{arn.split(':user/')[-1]}'):", file=sys.stdout)
-    print(
-        f"{name}".lower().replace(" ", "-").replace(".", ""),
-        "() {\n",
-        '  eval "$(\n',
-        f"    {_prog} session-access-key \\\n",
-        f"      --session-name {name} \\\n",
-        f"      --access-key {access_key} \\\n",
-        f"      --secret-access-key {secret_key} \\\n",
-        f"      --region {region} \\\n",
-        f"      --assume-role-arn {role_arn} \\\n",
-        '  )"\n}',
-        sep="",
-        file=sys.stdout,
+    printer.append(
+        f"# IAM user ({identity['Arn'].split(':user/')[-1]}) at {name} account through the '{role_arn}' role"
+    )
+    printer.append(
+        f"{name}".lower().replace(" ", "-").replace(".", "")
+        + "() {\n"
+        + '  eval "$(\n'
+        + f"    {_prog} session-access-key \\\n"
+        + f"      --session-name {name} \\\n"
+        + f"      --access-key {access_key} \\\n"
+        + f"      --secret-access-key {secret_key} \\\n"
+        + f"      --region {region} \\\n"
+        + f"      --assume-role-arn {role_arn} \\\n"
+        + '  )"\n}'
     )
 
 
@@ -247,7 +265,7 @@ class _Auth:
 
 def _print_assume_role(session_name: str, user: str, account_id: str, region: str, role: str) -> None:
     print("Auth type:  Assume role via AWS Access Key", file=sys.stderr)
-    print(f"Profile  :  {session_name}", file=sys.stderr)
+    print(f"Session  :  {session_name}", file=sys.stderr)
     print(f"IAM user :  {user}", file=sys.stderr)  # noqa: E999
     print(f"Account  :  {account_id}", file=sys.stderr)  # noqa: E999
     print(f"Role     :  {role}", file=sys.stderr)  # noqa: E999
@@ -286,7 +304,7 @@ class _AssumeRole(_Auth):
 
 def _print_access_key(session_name: str, user: str, account_id: str, region: str) -> None:
     print("Auth type:  AWS Access Key", file=sys.stderr)
-    print(f"Profile  :  {session_name}", file=sys.stderr)
+    print(f"Session  :  {session_name}", file=sys.stderr)
     print(f"IAM user :  {user}", file=sys.stderr)  # noqa: E999
     print(f"Account  :  {account_id}", file=sys.stderr)  # noqa: E999
     print(f"Region   :  {region}", file=sys.stderr)  # noqa: E999
@@ -383,27 +401,23 @@ def _describe_credentials() -> None:
         print(f"Cannot find AWS credentials configured by '{_prog}'.", file=sys.stderr)
 
 
-def _scan_local():
+def _scan_local(alias_printer: Printer) -> None:
     local_config = Session().full_config
     print("Scanning the local AWS config files...", file=sys.stdout)
     for key, details in local_config.get("sso_sessions", {}).items():
-        print("\nLooking for the next record...", file=sys.stdout)
-        print(
-            f"The '{key}' AWS IAM Identity Center identified: {details['sso_start_url']} ({details['sso_region']})",
-            file=sys.stdout,
-        )
-        if "y" not in input("Do you want to generate shell aliases? y/n ").lower():
+        ic = IdentityCenter(details["sso_start_url"], details["sso_region"])
+        print(f"\nThe '{key}' {ic} identified.", file=sys.stdout, end="")
+        if "y" not in input(" Generate aliases? (y/n): ").lower():
             continue
-        _identity_center_scan(IdentityCenter(details["sso_start_url"], details["sso_region"]))
+        _identity_center_scan(ic, alias_printer)
     for key, details in local_config.get("profiles", {}).items():
         if "sso_session" in details:
             continue
-        print("\nLooking for the next record...", file=sys.stdout)
+        print(f"\nThe '{key}' access key identified.", file=sys.stdout, end="")
+        if "y" not in input(" Generate alias? (y/n): ").lower():
+            continue
         if "role_arn" in details:
             role_arn = details["role_arn"]
-            print(f"The '{key}' AWS profile identified that assumes the '{role_arn}' role.", file=sys.stderr)
-            if "y" not in input("Do you want to generate shell alias? y/n ").lower():
-                continue
             source_profile_alias = details["source_profile"]
             source_profile = local_config.get("profiles", {}).get(source_profile_alias, {})
             if not source_profile:
@@ -415,12 +429,12 @@ def _scan_local():
                 source_profile["aws_secret_access_key"],
                 details["region"] or source_profile["region"],
                 role_arn,
+                alias_printer,
             )
         else:
-            print(f"The '{key}' access key identified.", file=sys.stdout)
-            if "y" not in input("Do you want to generate shell alias? y/n ").lower():
-                continue
-            _access_key(key, details["aws_access_key_id"], details["aws_secret_access_key"], details["region"])
+            _access_key(
+                key, details["aws_access_key_id"], details["aws_secret_access_key"], details["region"], alias_printer
+            )
     print("\nScanning completed!", file=sys.stdout)
 
 
@@ -429,7 +443,9 @@ def main():
         print(f"The positional arguments are deprecated for the `{_prog} session-ic`!", file=sys.stderr)  # noqa: F821
         print("Please update the alias as follows:\n", file=sys.stderr)  # noqa: F821
         identity_center = IdentityCenter(sys.argv[2], sys.argv[3])
-        _print_identity_center_alias(identity_center, sys.argv[4], "account-name", sys.argv[5], file=sys.stderr)  # noqa: F821
+        _print_identity_center_alias(
+            Printer("realtime", sys.stderr), identity_center, sys.argv[4], "account-name", sys.argv[5]
+        )
         print("\n\n", file=sys.stderr)  # noqa: F821
         _session_ic(identity_center, sys.argv[4], sys.argv[5])
         exit(0)
@@ -502,7 +518,7 @@ def main():
     args = parser.parse_args()
 
     if args.subcommand == "scan-ic":
-        _identity_center_scan(IdentityCenter(args.ic_start_url, args.ic_region))
+        _identity_center_scan(IdentityCenter(args.ic_start_url, args.ic_region), Printer("realtime", sys.stdout))
     elif args.subcommand == "session-ic":
         _session_ic(IdentityCenter(args.ic_start_url, args.ic_region), args.account_id, args.role_name)
     elif args.subcommand == "session-access-key":
@@ -512,7 +528,20 @@ def main():
     elif args.subcommand == "describe-creds":
         _describe_credentials()
     elif args.subcommand == "scan-local":
-        _scan_local()
+        answer = ""
+        while "y" not in answer and "n" not in answer:
+            answer = input("Do you want to print all aliases at the end? (y/n): ").lower()
+        if answer == "y":
+            _out = Printer("end", sys.stdout)
+            _out.append("\nGenerated aliases: ")
+        else:
+            _out = Printer("realtime", sys.stdout)
+        _scan_local(_out)
+        _out.print_all()
+        if answer == "n":
+            print("\nThere are multiple aliases generated.", file=sys.stdout)
+            if "y" in input("Do you want to print them all at once? (y/n): ").lower():
+                _out.print_all(always=True)
     else:
         _describe_credentials()
 
