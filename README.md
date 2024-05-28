@@ -4,7 +4,7 @@
 - IAM Identity Center credentials; or
 - IAM User credentials (access key)
   - Automatic MFA support
-  - Assume role support is coming soon
+  - Assume role support
 
 **How does it work?**
 
@@ -62,8 +62,6 @@ command, so you can run `aws-creds` without any arguments to see the current cre
 If the AWS CLI is installed and configured, you can convert the existing connections to the `aws-creds` aliases
 by running the `aws-creds scan` command. It runs an interactive alias generation process that allows you to decide
 which connections to convert.
-
-> No assumed roles are supported yet.
 
 ### `aws-creds scan-ic`
 
