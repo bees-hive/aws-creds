@@ -161,7 +161,7 @@ def _print_identity_center_alias(
     printer: Printer, ic: IdentityCenter, account_id: str, account_name: str, role_name: str
 ) -> None:
     printer.append(
-        f"{account_name}-{role_name}".lower().replace(" ", "-").replace(".", "")
+        f"{_prog}-{account_name}-{role_name}".lower().replace(" ", "-").replace(".", "")
         + "() {\n"
         + '  eval "$(\n'
         + f"    {_prog} session-ic \\\n"
@@ -216,7 +216,7 @@ def _access_key(name: str, access_key: str, secret_key: str, region: str, printe
         raise error
     printer.append(f"# IAM user ({identity['Arn'].split(':user/')[-1]}) at {name} ({identity['Account']}) account")
     printer.append(
-        f"{name}".lower().replace(" ", "-").replace(".", "")
+        f"{_prog}-{name}".lower().replace(" ", "-").replace(".", "")
         + "() {\n"
         + '  eval "$(\n'
         + f"    {_prog} session-access-key \\\n"
@@ -246,7 +246,7 @@ def _access_key_assume_role(
         f"# IAM user ({identity['Arn'].split(':user/')[-1]}) at {name} account through the '{role_arn}' role"
     )
     printer.append(
-        f"{name}".lower().replace(" ", "-").replace(".", "")
+        f"{_prog}-{name}".lower().replace(" ", "-").replace(".", "")
         + "() {\n"
         + '  eval "$(\n'
         + f"    {_prog} session-access-key \\\n"
