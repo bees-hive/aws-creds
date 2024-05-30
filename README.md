@@ -14,7 +14,8 @@ to the shell configuration profile file like `.bashrc`, `.zshrc`, etc. Once done
 you need to authenticate a specific connection, you run the appropriate alias. It authenticates depending on
 the configuration and exports the AWS session environment variables to the current shell session. The tools
 such as `aws`, `terraform`, `boto3`, and others will automatically use those variables while executing
-requested commands.
+requested commands. Once you no longer need the session, you can run `aws-creds-clear-session`
+to unset the environment variables.
 
 After the successful authentication, the following AWS-related environment variables are set:
 - `AWS_ACCESS_KEY_ID`
