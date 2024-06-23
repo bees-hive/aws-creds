@@ -27,7 +27,7 @@ Please visit [this AWS page](https://docs.aws.amazon.com/cli/latest/userguide/cl
 
 **Additional features**
 
-- automatically adjusts a shell prompt to show the current used session
+- automatically adjusts a shell prompt to show the current used session (use `--no-prompt-update` to disable)
 
 ## Installation
 
@@ -107,7 +107,7 @@ options:
 ```shell
 ~ aws-creds session-ic --help
 usage: aws-creds session-ic [-h] --ic-start-url URL --ic-region region --account-id id --role-name
-                            name
+                            name [--no-prompt-update]
 
 The command exports the environment variables suitable for authenticating CLI tools by creating an
 AWS login session based on the AWS IAM Identity Center role. Any AWS IAM Identity Center alias will
@@ -119,6 +119,7 @@ options:
   --ic-region region  AWS IAM Identity Center region (like `us-east-1`)
   --account-id id     AWS Account ID
   --role-name name    Role name
+  --no-prompt-update  Disables a shell prompt modification if specified
 ```
 
 ### `aws-creds session-access-key`
@@ -126,6 +127,7 @@ options:
 ~ aws-creds session-access-key --help
 usage: aws-creds session-access-key [-h] --session-name name --access-key key --secret-access-key
                                     secret-key --region region [--assume-role-arn role]
+                                    [--no-prompt-update]
 
 The command exports the environment variables suitable for authenticating CLI tools by creating an
 AWS login session based on the AWS Access Key. It asks to provide an MFA code if an MFA device is
@@ -138,4 +140,5 @@ options:
   --secret-access-key secret-key  Secret Access Key
   --region region                 AWS Region
   --assume-role-arn role          A role to assume
+  --no-prompt-update              Disables a shell prompt modification if specified
 ```

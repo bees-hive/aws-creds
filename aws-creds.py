@@ -75,6 +75,29 @@ class IdentityCenter:
         return f"AWS IAM Identity Center ({self.ic_start_url}, {self.ic_region})"
 
 
+class ShellPrompt:
+    def __init__(self, *, enabled: bool) -> None:
+        self._enabled = enabled
+
+    def update(self, default_prefix: str) -> None:
+        if not self._enabled:
+            return
+        variable_ = """
+        current_shell=$(ps -p $$ | awk "NR==2" | awk '{ print $4 }' | tr -d '-')
+        if [[ $current_shell == 'bash' ]]; then
+          export AWS_CREDS_PROMPT_PREFIX='\\[\\e[1;31m\\]('${FUNCNAME[0]}')\\[\\e[0m\\]'
+        elif [[ $current_shell == 'zsh' ]]; then
+          export AWS_CREDS_PROMPT_PREFIX='%B%F{red}('$funcstack[2]')%f%b'
+        else
+          export AWS_CREDS_PROMPT_PREFIX="({default})"
+        fi
+        current_prompt="${AWS_CREDS_ORIGIN_PS1:-${PS1:-}}"
+        export AWS_CREDS_ORIGIN_PS1="${current_prompt}"
+        export PS1="${AWS_CREDS_PROMPT_PREFIX} ${current_prompt}"
+        """
+        print(variable_.replace("{default}", default_prefix), file=sys.stdout)
+
+
 def _new_session_token(identity_center: IdentityCenter) -> str:
     sso_oidc = Session().create_client("sso-oidc", region_name=identity_center.ic_region)
     client_creds = sso_oidc.register_client(clientName=_prog, clientType="public", scopes=["sso:account:access"])
@@ -195,24 +218,7 @@ def _print_session_commands_footer():
     print(f"2. Run `{_clear_session_function_name}` resets current CLI credentials.", file=sys.stderr)
 
 
-def _run_prompt_update(default: str) -> None:
-    variable_ = """
-    current_shell=$(ps -p $$ | awk "NR==2" | awk '{ print $4 }' | tr -d '-')
-    if [[ $current_shell == 'bash' ]]; then
-      export AWS_CREDS_PROMPT_PREFIX='\\[\\e[1;31m\\]('${FUNCNAME[0]}')\\[\\e[0m\\]'
-    elif [[ $current_shell == 'zsh' ]]; then
-      export AWS_CREDS_PROMPT_PREFIX='%B%F{red}('$funcstack[2]')%f%b'
-    else
-      export AWS_CREDS_PROMPT_PREFIX="({default})"
-    fi
-    current_prompt="${AWS_CREDS_ORIGIN_PS1:-${PS1:-}}"
-    export AWS_CREDS_ORIGIN_PS1="${current_prompt}"
-    export PS1="${AWS_CREDS_PROMPT_PREFIX} ${current_prompt}"
-    """
-    print(variable_.replace("{default}", default), file=sys.stdout)
-
-
-def _session_ic(ic: IdentityCenter, account_id: str, role: str) -> None:
+def _session_ic(ic: IdentityCenter, account_id: str, role: str, prompt: ShellPrompt) -> None:
     sso = Session().create_client("sso", region_name=ic.ic_region)
     token = _token(ic)
     role_creds = sso.get_role_credentials(roleName=role, accountId=account_id, accessToken=token)["roleCredentials"]
@@ -222,7 +228,7 @@ def _session_ic(ic: IdentityCenter, account_id: str, role: str) -> None:
             continue
         account_name = account["accountName"]
         break
-    _run_prompt_update(f"{role}@{account_name}")
+    prompt.update(f"{role}@{account_name}")
     print('export AWS_CREDS_SESSION_TYPE="ic"', file=sys.stdout)
     print(f'export AWS_CREDS_ACCOUNT_NAME="{account_name}"', file=sys.stdout)
     print(f'export AWS_CREDS_ACCOUNT_ID="{account_id}"', file=sys.stdout)
@@ -330,13 +336,16 @@ def _print_assume_role(session_name: str, user: str, account_id: str, region: st
 
 
 class _AssumeRole(_Auth):
-    def __init__(self, sts, session_name: str, user_name: str, account_id: str, region: str, role_arn: str) -> None:
+    def __init__(
+        self, sts, session_name: str, user_name: str, account_id: str, region: str, role_arn: str, prompt: ShellPrompt
+    ) -> None:
         self._sts = sts
         self._session_name = session_name
         self._user_name = user_name
         self._role_arn = role_arn
         self._account_id = account_id
         self._region = region
+        self._prompt = prompt
 
     def perform(self, mfa_device: Optional[str], mfa_code: Optional[str]) -> None:
         if mfa_device and mfa_code:
@@ -346,7 +355,7 @@ class _AssumeRole(_Auth):
         else:
             session = self._sts.assume_role(RoleArn=self._role_arn, RoleSessionName=self._session_name)
         temp_credentials = session["Credentials"]
-        _run_prompt_update(self._session_name)
+        self._prompt.update(self._session_name)
         print('export AWS_CREDS_SESSION_TYPE="ar"', file=sys.stdout)
         print(f'export AWS_CREDS_SESSION_NAME="{self._session_name}"', file=sys.stdout)
         print(f'export AWS_CREDS_SESSION_ROLE="{self._role_arn}"', file=sys.stdout)
@@ -386,12 +395,15 @@ def _print_access_key(session_name: str, user: str, account_id: str, region: str
 
 
 class _AccessKey(_Auth):
-    def __init__(self, sts, session_name: str, user_name: str, account_id: str, region: str) -> None:
+    def __init__(
+        self, sts, session_name: str, user_name: str, account_id: str, region: str, prompt: ShellPrompt
+    ) -> None:
         self._sts = sts
         self._session_name = session_name
         self._user_name = user_name
         self._account_id = account_id
         self._region = region
+        self._prompt = prompt
 
     def perform(self, mfa_device: Optional[str], mfa_code: Optional[str]) -> None:
         if mfa_device and mfa_code:
@@ -399,7 +411,7 @@ class _AccessKey(_Auth):
         else:
             session = self._sts.get_session_token()
         temp_credentials = session["Credentials"]
-        _run_prompt_update(self._session_name)
+        self._prompt.update(self._session_name)
         print('export AWS_CREDS_SESSION_TYPE="ak"', file=sys.stdout)
         print(f'export AWS_CREDS_SESSION_NAME="{self._session_name}"', file=sys.stdout)
         print(f'export AWS_CREDS_USER_NAME="{self._user_name}"', file=sys.stdout)
@@ -428,7 +440,9 @@ class _AccessKey(_Auth):
         _print_session_commands_footer()
 
 
-def _session_access_key(name: str, access_key: str, secret_key: str, region: str, role_arn: Optional[str]) -> None:
+def _session_access_key(
+    name: str, access_key: str, secret_key: str, region: str, role_arn: Optional[str], prompt: ShellPrompt
+) -> None:
     sts = Session().create_client(
         "sts", aws_access_key_id=access_key, aws_secret_access_key=secret_key, region_name=region
     )
@@ -443,9 +457,9 @@ def _session_access_key(name: str, access_key: str, secret_key: str, region: str
     account_id = caller_identity["Account"]
     iam_user = arn.split(":user/")[-1]
     if role_arn:
-        auth = _AssumeRole(sts, name, iam_user, account_id, region, role_arn)
+        auth = _AssumeRole(sts, name, iam_user, account_id, region, role_arn, prompt)
     else:
-        auth = _AccessKey(sts, name, iam_user, account_id, region)
+        auth = _AccessKey(sts, name, iam_user, account_id, region, prompt)
     mfas: Dict[str, str] = {
         mfa["SerialNumber"].split("/")[-1]: mfa["SerialNumber"]
         for mfa in Session()
@@ -530,6 +544,10 @@ def _scan_local(alias_printer: Printer) -> None:
     print("\nScanning completed!", file=sys.stdout)
 
 
+def _clear_session() -> None:
+    print(f"{_clear_session_function_name} &> /dev/null 2>&1", file=sys.stdout)
+
+
 def main():
     if len(sys.argv) == 6 and sys.argv[1] == "session-ic":
         print(f"The positional arguments are deprecated for the `{_prog} session-ic`!", file=sys.stderr)  # noqa: F821
@@ -539,7 +557,8 @@ def main():
             Printer("realtime", sys.stderr), identity_center, sys.argv[4], "account-name", sys.argv[5]
         )
         print("\n\n", file=sys.stderr)  # noqa: F821
-        _session_ic(identity_center, sys.argv[4], sys.argv[5])
+        _clear_session()
+        _session_ic(identity_center, sys.argv[4], sys.argv[5], ShellPrompt(enabled=False))
         exit(0)
     parser = ArgumentParser(
         description="Painless CLI authentication using various AWS identities.",
@@ -610,6 +629,9 @@ def main():
     )
     session_ic.add_argument("--account-id", metavar="id", required=True, help="AWS Account ID")
     session_ic.add_argument("--role-name", metavar="name", required=True, help="Role name")
+    session_ic.add_argument(
+        "--no-prompt-update", action="store_true", help="Disables a shell prompt modification if specified"
+    )
 
     session_ak = subparsers.add_parser(
         "session-access-key",
@@ -626,16 +648,31 @@ def main():
     session_ak.add_argument("--secret-access-key", metavar="secret-key", required=True, help="Secret Access Key")
     session_ak.add_argument("--region", metavar="region", required=True, help="AWS Region")
     session_ak.add_argument("--assume-role-arn", metavar="role", required=False, help="A role to assume")
+    session_ak.add_argument(
+        "--no-prompt-update", action="store_true", help="Disables a shell prompt update if specified"
+    )
 
     args = parser.parse_args()
 
     if args.subcommand == "scan-ic":
         _identity_center_scan(IdentityCenter(args.ic_start_url, args.ic_region), Printer("realtime", sys.stdout))
     elif args.subcommand == "session-ic":
-        _session_ic(IdentityCenter(args.ic_start_url, args.ic_region), args.account_id, args.role_name)
+        _clear_session()
+        _session_ic(
+            IdentityCenter(args.ic_start_url, args.ic_region),
+            args.account_id,
+            args.role_name,
+            ShellPrompt(enabled=not args.no_prompt_update),
+        )
     elif args.subcommand == "session-access-key":
+        _clear_session()
         _session_access_key(
-            args.session_name, args.access_key, args.secret_access_key, args.region, args.assume_role_arn
+            args.session_name,
+            args.access_key,
+            args.secret_access_key,
+            args.region,
+            args.assume_role_arn,
+            ShellPrompt(enabled=not args.no_prompt_update),
         )
     elif args.subcommand == "describe-creds":
         _describe_credentials()
