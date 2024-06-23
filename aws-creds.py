@@ -175,9 +175,17 @@ def _print_identity_center_alias(
     )
 
 
-def _clear_session_function(*variables: str) -> str:
+def _clear_session_function(prompt_variable: str, *variables: str) -> str:
     return "\n".join(
-        [f"{_clear_session_function_name}() {{", "\n".join([f"  unset {variable}" for variable in variables]), "}"]
+        [
+            f"{_clear_session_function_name}() {{",
+            f'  if test -n "${{{prompt_variable}}}"; then',
+            f'    export PS1="${{{prompt_variable}-}}"',
+            f"    unset {prompt_variable}",
+            "  fi",
+            "\n".join([f"  unset {variable}" for variable in variables]),
+            "}",
+        ]
     )
 
 
@@ -185,6 +193,23 @@ def _print_session_commands_footer():
     print("\nUseful tips:", file=sys.stderr)
     print(f"1. Run `{_prog}` describes current CLI credentials.", file=sys.stderr)
     print(f"2. Run `{_clear_session_function_name}` resets current CLI credentials.", file=sys.stderr)
+
+
+def _run_prompt_update(default: str) -> None:
+    variable_ = """
+    current_shell=$(ps -p $$ | awk "NR==2" | awk '{ print $4 }' | tr -d '-')
+    if [[ $current_shell == 'bash' ]]; then
+      export AWS_CREDS_PROMPT_PREFIX='\\[\\e[1;31m\\]('${FUNCNAME[0]}')\\[\\e[0m\\]'
+    elif [[ $current_shell == 'zsh' ]]; then
+      export AWS_CREDS_PROMPT_PREFIX='%B%F{red}('$funcstack[2]')%f%b'
+    else
+      export AWS_CREDS_PROMPT_PREFIX="({default})"
+    fi
+    current_prompt="${AWS_CREDS_ORIGIN_PS1:-${PS1:-}}"
+    export AWS_CREDS_ORIGIN_PS1="${current_prompt}"
+    export PS1="${AWS_CREDS_PROMPT_PREFIX} ${current_prompt}"
+    """
+    print(variable_.replace("{default}", default), file=sys.stdout)
 
 
 def _session_ic(ic: IdentityCenter, account_id: str, role: str) -> None:
@@ -197,6 +222,7 @@ def _session_ic(ic: IdentityCenter, account_id: str, role: str) -> None:
             continue
         account_name = account["accountName"]
         break
+    _run_prompt_update(f"{role}@{account_name}")
     print('export AWS_CREDS_SESSION_TYPE="ic"', file=sys.stdout)
     print(f'export AWS_CREDS_ACCOUNT_NAME="{account_name}"', file=sys.stdout)
     print(f'export AWS_CREDS_ACCOUNT_ID="{account_id}"', file=sys.stdout)
@@ -209,6 +235,8 @@ def _session_ic(ic: IdentityCenter, account_id: str, role: str) -> None:
     _print_ic_information(account_name, account_id, role)
     print(
         _clear_session_function(
+            "AWS_CREDS_ORIGIN_PS1",
+            "AWS_CREDS_PROMPT_PREFIX",
             "AWS_CREDS_SESSION_TYPE",
             "AWS_CREDS_ACCOUNT_NAME",
             "AWS_CREDS_ACCOUNT_ID",
@@ -318,6 +346,7 @@ class _AssumeRole(_Auth):
         else:
             session = self._sts.assume_role(RoleArn=self._role_arn, RoleSessionName=self._session_name)
         temp_credentials = session["Credentials"]
+        _run_prompt_update(self._session_name)
         print('export AWS_CREDS_SESSION_TYPE="ar"', file=sys.stdout)
         print(f'export AWS_CREDS_SESSION_NAME="{self._session_name}"', file=sys.stdout)
         print(f'export AWS_CREDS_SESSION_ROLE="{self._role_arn}"', file=sys.stdout)
@@ -331,6 +360,8 @@ class _AssumeRole(_Auth):
         _print_assume_role(self._session_name, self._user_name, self._account_id, self._region, self._role_arn)
         print(
             _clear_session_function(
+                "AWS_CREDS_ORIGIN_PS1",
+                "AWS_CREDS_PROMPT_PREFIX",
                 "AWS_CREDS_SESSION_TYPE",
                 "AWS_CREDS_SESSION_NAME",
                 "AWS_CREDS_SESSION_ROLE",
@@ -368,6 +399,7 @@ class _AccessKey(_Auth):
         else:
             session = self._sts.get_session_token()
         temp_credentials = session["Credentials"]
+        _run_prompt_update(self._session_name)
         print('export AWS_CREDS_SESSION_TYPE="ak"', file=sys.stdout)
         print(f'export AWS_CREDS_SESSION_NAME="{self._session_name}"', file=sys.stdout)
         print(f'export AWS_CREDS_USER_NAME="{self._user_name}"', file=sys.stdout)
@@ -380,6 +412,8 @@ class _AccessKey(_Auth):
         _print_access_key(self._session_name, self._user_name, self._account_id, self._region)
         print(
             _clear_session_function(
+                "AWS_CREDS_ORIGIN_PS1",
+                "AWS_CREDS_PROMPT_PREFIX",
                 "AWS_CREDS_SESSION_TYPE",
                 "AWS_CREDS_SESSION_NAME",
                 "AWS_CREDS_USER_NAME",

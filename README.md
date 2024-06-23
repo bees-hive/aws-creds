@@ -25,6 +25,10 @@ After the successful authentication, the following AWS-related environment varia
 
 Please visit [this AWS page](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html#envvars-list) for details.
 
+**Additional features**
+
+- automatically adjusts a shell prompt to show the current used session
+
 ## Installation
 
 The latest version can be installed using the following command:
