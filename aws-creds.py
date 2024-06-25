@@ -8,7 +8,7 @@ import os
 import sys
 from typing import Dict, Optional, Literal, TextIO
 
-__version__ = "0.6.0+20240625-113053"
+__version__ = "0.7.0"
 _prog = Path(__file__).name.split(".")[0]
 _dependencies_home = Path.home().joinpath(".cache").joinpath(_prog)
 _clear_session_function_name = f"{_prog}-clear-session"
