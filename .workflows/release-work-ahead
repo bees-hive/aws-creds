@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -o errexit
+set -o pipefail
+cd "$(git rev-parse --show-toplevel)"
+# prepare
+git checkout main
+git pull --tags
+# deside on version
+# shellcheck disable=SC2046 # Quote this to prevent word splitt...
+latest_tag=$(git describe --tags $(git rev-list --tags --max-count=1))
+echo "Commit history since the '${latest_tag}' tag:"
+git log "${latest_tag}"..HEAD --oneline
+read -r -p "What is the next version? " new_version
+if [[ -z ${new_version} ]]; then
+  echo "No version provided, exiting..."
+  exit 1
+fi
+# update version in the script
+if [[ $OSTYPE == "darwin"* ]]; then
+  # macOS system
+  sed -i '' "s/__version__ = .*/__version__ = \"$new_version\"/" aws-creds.py
+else
+  sed -i "s/__version__ = .*/__version__ = \"$new_version\"/" aws-creds.py
+fi
+git commit --interactive \
+  --message "Bump program version to ${new_version}" \
+  --message "The $(${new_version}) is set as a version for the next release." \
+  --message "This commit was created by the release script."

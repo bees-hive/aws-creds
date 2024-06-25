@@ -8,6 +8,7 @@ import os
 import sys
 from typing import Dict, Optional, Literal, TextIO
 
+__version__ = "0.6.0+20240625-113053"
 _prog = Path(__file__).name.split(".")[0]
 _dependencies_home = Path.home().joinpath(".cache").joinpath(_prog)
 _clear_session_function_name = f"{_prog}-clear-session"
@@ -565,6 +566,7 @@ def main():
         prog=_prog,
         formatter_class=lambda prog: HelpFormatter(prog, width=100),
     )
+    parser.add_argument("--version", action="version", version=f"{_prog} {__version__}")
     subparsers = parser.add_subparsers(title="Commands", dest="subcommand")
 
     subparsers.add_parser(

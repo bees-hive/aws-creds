@@ -46,12 +46,14 @@ For Brew users, just run `brew install bees-hive/hive/aws-creds`.
 ### `aws-creds`
 ```shell
 ~ aws-creds --help
-usage: aws-creds [-h] {describe-creds,scan-local,scan-ic,session-ic,session-access-key} ...
+usage: aws-creds [-h] [--version]
+                 {describe-creds,scan-local,scan-ic,session-ic,session-access-key} ...
 
 Painless CLI authentication using various AWS identities.
 
 options:
   -h, --help            show this help message and exit
+  --version             show program's version number and exit
 
 Commands:
   {describe-creds,scan-local,scan-ic,session-ic,session-access-key}

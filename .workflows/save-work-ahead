@@ -11,4 +11,16 @@ ruff check --config line-length=120 --fix aws-creds.py ||
 ruff format --config line-length=120 aws-creds.py
 
 echo "Verifying 'install.sh'..."
-cat install.sh | INSTALL_DIR=.install bash
+INSTALL_DIR=.install bash <install.sh
+
+echo "Update __version__ in 'aws-creds.py'..."
+# shellcheck disable=SC2046 # Quote this to prevent word splitt...
+latest_tag=$(git describe --tags $(git rev-list --tags --max-count=1))
+new_version="${latest_tag}+$(date "+%Y%m%d-%H%M%S")"
+if [[ $OSTYPE == "darwin"* ]]; then
+  # macOS system
+  sed -i '' "s/__version__ = .*/__version__ = \"$new_version\"/" aws-creds.py
+else
+  sed -i "s/__version__ = .*/__version__ = \"$new_version\"/" aws-creds.py
+fi
+python aws-creds.py --version
