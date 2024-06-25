@@ -26,3 +26,4 @@ git commit --interactive \
   --message "Bump program version to ${new_version}" \
   --message "The $(${new_version}) is set as a version for the next release." \
   --message "This commit was created by the release script."
+git push
