@@ -8,7 +8,7 @@ import os
 import sys
 from typing import Dict, Optional, Literal, TextIO
 
-__version__ = "0.7.1"
+__version__ = "0.7.1+20240627-143439"
 _prog = Path(__file__).name.split(".")[0]
 _dependencies_home = Path.home().joinpath(".cache").joinpath(_prog)
 _clear_session_function_name = f"{_prog}-clear-session"
@@ -193,6 +193,7 @@ def _print_identity_center_alias(
         + f"      --ic-start-url {ic.ic_start_url} \\\n"
         + f"      --ic-region {ic.ic_region} \\\n"
         + f"      --account-id {account_id} \\\n"
+        + f"      --aws-region {ic.ic_region} \\\n"
         + f"      --role-name {role_name}\n"
         + '  )"\n'
         + "}"
@@ -219,7 +220,7 @@ def _print_session_commands_footer():
     print(f"2. Run `{_clear_session_function_name}` resets current CLI credentials.", file=sys.stderr)
 
 
-def _session_ic(ic: IdentityCenter, account_id: str, role: str, prompt: ShellPrompt) -> None:
+def _session_ic(ic: IdentityCenter, account_id: str, role: str, aws_region: str, prompt: ShellPrompt) -> None:
     sso = Session().create_client("sso", region_name=ic.ic_region)
     token = _token(ic)
     role_creds = sso.get_role_credentials(roleName=role, accountId=account_id, accessToken=token)["roleCredentials"]
@@ -234,12 +235,12 @@ def _session_ic(ic: IdentityCenter, account_id: str, role: str, prompt: ShellPro
     print(f'export AWS_CREDS_ACCOUNT_NAME="{account_name}"', file=sys.stdout)
     print(f'export AWS_CREDS_ACCOUNT_ID="{account_id}"', file=sys.stdout)
     print(f'export AWS_CREDS_ROLE_NAME="{role}"', file=sys.stdout)
-    print(f'export AWS_DEFAULT_REGION="{ic.ic_region}"', file=sys.stdout)
+    print(f'export AWS_REGION="{aws_region}"', file=sys.stdout)
     print(f'export AWS_ACCESS_KEY_ID="{role_creds["accessKeyId"]}"', file=sys.stdout)
     print(f'export AWS_SECRET_ACCESS_KEY="{role_creds["secretAccessKey"]}"', file=sys.stdout)
     print(f'export AWS_SESSION_TOKEN="{role_creds["sessionToken"]}"', file=sys.stdout)
     print("AWS environment variables are exported!\n", file=sys.stderr)
-    _print_ic_information(account_name, account_id, role)
+    _print_ic_information(account_name, account_id, role, aws_region)
     print(
         _clear_session_function(
             "AWS_CREDS_ORIGIN_PS1",
@@ -248,7 +249,7 @@ def _session_ic(ic: IdentityCenter, account_id: str, role: str, prompt: ShellPro
             "AWS_CREDS_ACCOUNT_NAME",
             "AWS_CREDS_ACCOUNT_ID",
             "AWS_CREDS_ROLE_NAME",
-            "AWS_DEFAULT_REGION",
+            "AWS_REGION",
             "AWS_ACCESS_KEY_ID",
             "AWS_SECRET_ACCESS_KEY",
             "AWS_SESSION_TOKEN",
@@ -258,10 +259,11 @@ def _session_ic(ic: IdentityCenter, account_id: str, role: str, prompt: ShellPro
     _print_session_commands_footer()
 
 
-def _print_ic_information(account_name: str, account_id: str, role_name: str) -> None:
+def _print_ic_information(account_name: str, account_id: str, role_name: str, aws_region: str) -> None:
     print("Auth type:  AWS IAM Identity Center", file=sys.stderr)
     print(f"Account  :  {account_name} ({account_id})", file=sys.stderr)  # noqa: E999
     print("Used role: ", role_name, file=sys.stderr)
+    print("Region   : ", aws_region, file=sys.stderr)
 
 
 def _access_key(name: str, access_key: str, secret_key: str, region: str, printer: Printer) -> None:
@@ -365,7 +367,7 @@ class _AssumeRole(_Auth):
         print(f'export AWS_ACCESS_KEY_ID="{temp_credentials["AccessKeyId"]}"', file=sys.stdout)
         print(f'export AWS_SECRET_ACCESS_KEY="{temp_credentials["SecretAccessKey"]}"', file=sys.stdout)
         print(f'export AWS_SESSION_TOKEN="{temp_credentials["SessionToken"]}"', file=sys.stdout)
-        print(f'export AWS_DEFAULT_REGION="{self._region}"', file=sys.stdout)
+        print(f'export AWS_REGION="{self._region}"', file=sys.stdout)
         print("AWS environment variables are exported!\n", file=sys.stderr)
         _print_assume_role(self._session_name, self._user_name, self._account_id, self._region, self._role_arn)
         print(
@@ -380,7 +382,7 @@ class _AssumeRole(_Auth):
                 "AWS_ACCESS_KEY_ID",
                 "AWS_SECRET_ACCESS_KEY",
                 "AWS_SESSION_TOKEN",
-                "AWS_DEFAULT_REGION",
+                "AWS_REGION",
             ),
             file=sys.stdout,
         )
@@ -420,7 +422,7 @@ class _AccessKey(_Auth):
         print(f'export AWS_ACCESS_KEY_ID="{temp_credentials["AccessKeyId"]}"', file=sys.stdout)
         print(f'export AWS_SECRET_ACCESS_KEY="{temp_credentials["SecretAccessKey"]}"', file=sys.stdout)
         print(f'export AWS_SESSION_TOKEN="{temp_credentials["SessionToken"]}"', file=sys.stdout)
-        print(f'export AWS_DEFAULT_REGION="{self._region}"', file=sys.stdout)
+        print(f'export AWS_REGION="{self._region}"', file=sys.stdout)
         print("AWS environment variables are exported!\n", file=sys.stderr)
         _print_access_key(self._session_name, self._user_name, self._account_id, self._region)
         print(
@@ -434,7 +436,7 @@ class _AccessKey(_Auth):
                 "AWS_ACCESS_KEY_ID",
                 "AWS_SECRET_ACCESS_KEY",
                 "AWS_SESSION_TOKEN",
-                "AWS_DEFAULT_REGION",
+                "AWS_REGION",
             ),
             file=sys.stdout,
         )
@@ -487,21 +489,24 @@ def _describe_credentials() -> None:
     session_type = os.getenv("AWS_CREDS_SESSION_TYPE", "")
     if session_type == "ic":
         _print_ic_information(
-            os.getenv("AWS_CREDS_ACCOUNT_NAME"), os.getenv("AWS_CREDS_ACCOUNT_ID"), os.getenv("AWS_CREDS_ROLE_NAME")
+            os.getenv("AWS_CREDS_ACCOUNT_NAME"),
+            os.getenv("AWS_CREDS_ACCOUNT_ID"),
+            os.getenv("AWS_CREDS_ROLE_NAME"),
+            os.getenv("AWS_REGION"),
         )
     elif session_type == "ak":
         _print_access_key(
             os.getenv("AWS_CREDS_SESSION_NAME"),
             os.getenv("AWS_CREDS_USER_NAME"),
             os.getenv("AWS_CREDS_ACCOUNT_ID"),
-            os.getenv("AWS_DEFAULT_REGION"),
+            os.getenv("AWS_REGION"),
         )
     elif session_type == "ar":
         _print_assume_role(
             os.getenv("AWS_CREDS_SESSION_NAME"),
             os.getenv("AWS_CREDS_USER_NAME"),
             os.getenv("AWS_CREDS_ACCOUNT_ID"),
-            os.getenv("AWS_DEFAULT_REGION"),
+            os.getenv("AWS_REGION"),
             os.getenv("AWS_CREDS_SESSION_ROLE"),
         )
     else:
@@ -559,7 +564,7 @@ def main():
         )
         print("\n\n", file=sys.stderr)  # noqa: F821
         _clear_session()
-        _session_ic(identity_center, sys.argv[4], sys.argv[5], ShellPrompt(enabled=False))
+        _session_ic(identity_center, sys.argv[4], sys.argv[5], sys.argv[3], ShellPrompt(enabled=False))
         exit(0)
     parser = ArgumentParser(
         description="Painless CLI authentication using various AWS identities.",
@@ -632,6 +637,12 @@ def main():
     session_ic.add_argument("--account-id", metavar="id", required=True, help="AWS Account ID")
     session_ic.add_argument("--role-name", metavar="name", required=True, help="Role name")
     session_ic.add_argument(
+        "--aws-region",
+        metavar="region",
+        default=None,
+        help="An AWS region where the AWS resources are located ('--ic-region' value is used if unset).",
+    )
+    session_ic.add_argument(
         "--no-prompt-update", action="store_true", help="Disables a shell prompt modification if specified"
     )
 
@@ -660,10 +671,13 @@ def main():
         _identity_center_scan(IdentityCenter(args.ic_start_url, args.ic_region), Printer("realtime", sys.stdout))
     elif args.subcommand == "session-ic":
         _clear_session()
+        if args.aws_region is None:
+            args.aws_region = args.ic_region
         _session_ic(
             IdentityCenter(args.ic_start_url, args.ic_region),
             args.account_id,
             args.role_name,
+            args.aws_region,
             ShellPrompt(enabled=not args.no_prompt_update),
         )
     elif args.subcommand == "session-access-key":
