@@ -22,6 +22,7 @@ After the successful authentication, the following AWS-related environment varia
 - `AWS_SECRET_ACCESS_KEY`
 - `AWS_SESSION_TOKEN`
 - `AWS_REGION`
+- `AWS_DEFAULT_OUTPUT`
 
 Please visit [this AWS page](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html#envvars-list) for details.
 
@@ -109,21 +110,24 @@ options:
 ```shell
 ~ aws-creds session-ic --help
 usage: aws-creds session-ic [-h] --ic-start-url URL --ic-region region --account-id id --role-name
-                            name [--aws-region region] [--no-prompt-update]
+                            name [--aws-region region] [--output {json,text,table,yaml,yaml-stream}]
+                            [--no-prompt-update]
 
 The command exports the environment variables suitable for authenticating CLI tools by creating an
 AWS login session based on the AWS IAM Identity Center role. Any AWS IAM Identity Center alias will
 use this command to authenticate.
 
 options:
-  -h, --help           show this help message and exit
-  --ic-start-url URL   AWS IAM Identity Center start URL (like `https://xxxxxx.awsapps.com/start`)
-  --ic-region region   AWS IAM Identity Center region (like `us-east-1`)
-  --account-id id      AWS Account ID
-  --role-name name     Role name
-  --aws-region region  An AWS region where the AWS resources are located ('--ic-region' value is
-                       used if unset).
-  --no-prompt-update   Disables a shell prompt modification if specified
+  -h, --help            show this help message and exit
+  --ic-start-url URL    AWS IAM Identity Center start URL (like `https://xxxxxx.awsapps.com/start`)
+  --ic-region region    AWS IAM Identity Center region (like `us-east-1`)
+  --account-id id       AWS Account ID
+  --role-name name      Role name
+  --aws-region region   An AWS region where the AWS resources are located ('--ic-region' value is
+                        used if unset).
+  --output {json,text,table,yaml,yaml-stream}
+                        An output format (default: 'json').
+  --no-prompt-update    Disables a shell prompt modification if specified
 ```
 
 ### `aws-creds session-access-key`
@@ -131,6 +135,7 @@ options:
 ~ aws-creds session-access-key --help
 usage: aws-creds session-access-key [-h] --session-name name --access-key key --secret-access-key
                                     secret-key --region region [--assume-role-arn role]
+                                    [--output {json,text,table,yaml,yaml-stream}]
                                     [--no-prompt-update]
 
 The command exports the environment variables suitable for authenticating CLI tools by creating an
@@ -138,11 +143,13 @@ AWS login session based on the AWS Access Key. It asks to provide an MFA code if
 configured. Any AWS Access Key alias will use this command to authenticate.
 
 options:
-  -h, --help                      show this help message and exit
-  --session-name name             A name
-  --access-key key                Access Key
-  --secret-access-key secret-key  Secret Access Key
-  --region region                 AWS Region
-  --assume-role-arn role          A role to assume
-  --no-prompt-update              Disables a shell prompt modification if specified
+  -h, --help                       show this help message and exit
+  --session-name name              A name
+  --access-key key                 Access Key
+  --secret-access-key secret-key   Secret Access Key
+  --region region                  AWS Region
+  --assume-role-arn role           A role to assume
+  --output {json,text,table,yaml,yaml-stream}
+                                   An output format (default: 'json').
+  --no-prompt-update               Disables a shell prompt update if specified
 ```

@@ -8,7 +8,7 @@ import os
 import sys
 from typing import Dict, Optional, Literal, TextIO
 
-__version__ = "0.7.1+20240627-143439"
+__version__ = "0.7.1+20240627-152643"
 _prog = Path(__file__).name.split(".")[0]
 _dependencies_home = Path.home().joinpath(".cache").joinpath(_prog)
 _clear_session_function_name = f"{_prog}-clear-session"
@@ -220,7 +220,9 @@ def _print_session_commands_footer():
     print(f"2. Run `{_clear_session_function_name}` resets current CLI credentials.", file=sys.stderr)
 
 
-def _session_ic(ic: IdentityCenter, account_id: str, role: str, aws_region: str, prompt: ShellPrompt) -> None:
+def _session_ic(
+    ic: IdentityCenter, account_id: str, role: str, aws_region: str, output: str, prompt: ShellPrompt
+) -> None:
     sso = Session().create_client("sso", region_name=ic.ic_region)
     token = _token(ic)
     role_creds = sso.get_role_credentials(roleName=role, accountId=account_id, accessToken=token)["roleCredentials"]
@@ -236,6 +238,7 @@ def _session_ic(ic: IdentityCenter, account_id: str, role: str, aws_region: str,
     print(f'export AWS_CREDS_ACCOUNT_ID="{account_id}"', file=sys.stdout)
     print(f'export AWS_CREDS_ROLE_NAME="{role}"', file=sys.stdout)
     print(f'export AWS_REGION="{aws_region}"', file=sys.stdout)
+    print(f'export AWS_DEFAULT_OUTPUT="{output}"', file=sys.stdout)
     print(f'export AWS_ACCESS_KEY_ID="{role_creds["accessKeyId"]}"', file=sys.stdout)
     print(f'export AWS_SECRET_ACCESS_KEY="{role_creds["secretAccessKey"]}"', file=sys.stdout)
     print(f'export AWS_SESSION_TOKEN="{role_creds["sessionToken"]}"', file=sys.stdout)
@@ -250,6 +253,7 @@ def _session_ic(ic: IdentityCenter, account_id: str, role: str, aws_region: str,
             "AWS_CREDS_ACCOUNT_ID",
             "AWS_CREDS_ROLE_NAME",
             "AWS_REGION",
+            "AWS_DEFAULT_OUTPUT",
             "AWS_ACCESS_KEY_ID",
             "AWS_SECRET_ACCESS_KEY",
             "AWS_SESSION_TOKEN",
@@ -340,7 +344,15 @@ def _print_assume_role(session_name: str, user: str, account_id: str, region: st
 
 class _AssumeRole(_Auth):
     def __init__(
-        self, sts, session_name: str, user_name: str, account_id: str, region: str, role_arn: str, prompt: ShellPrompt
+        self,
+        sts,
+        session_name: str,
+        user_name: str,
+        account_id: str,
+        region: str,
+        role_arn: str,
+        prompt: ShellPrompt,
+        output: str,
     ) -> None:
         self._sts = sts
         self._session_name = session_name
@@ -349,6 +361,7 @@ class _AssumeRole(_Auth):
         self._account_id = account_id
         self._region = region
         self._prompt = prompt
+        self._output = output
 
     def perform(self, mfa_device: Optional[str], mfa_code: Optional[str]) -> None:
         if mfa_device and mfa_code:
@@ -368,6 +381,7 @@ class _AssumeRole(_Auth):
         print(f'export AWS_SECRET_ACCESS_KEY="{temp_credentials["SecretAccessKey"]}"', file=sys.stdout)
         print(f'export AWS_SESSION_TOKEN="{temp_credentials["SessionToken"]}"', file=sys.stdout)
         print(f'export AWS_REGION="{self._region}"', file=sys.stdout)
+        print(f'export AWS_DEFAULT_OUTPUT="{self._output}"', file=sys.stdout)
         print("AWS environment variables are exported!\n", file=sys.stderr)
         _print_assume_role(self._session_name, self._user_name, self._account_id, self._region, self._role_arn)
         print(
@@ -383,6 +397,7 @@ class _AssumeRole(_Auth):
                 "AWS_SECRET_ACCESS_KEY",
                 "AWS_SESSION_TOKEN",
                 "AWS_REGION",
+                "AWS_DEFAULT_OUTPUT",
             ),
             file=sys.stdout,
         )
@@ -399,7 +414,7 @@ def _print_access_key(session_name: str, user: str, account_id: str, region: str
 
 class _AccessKey(_Auth):
     def __init__(
-        self, sts, session_name: str, user_name: str, account_id: str, region: str, prompt: ShellPrompt
+        self, sts, session_name: str, user_name: str, account_id: str, region: str, prompt: ShellPrompt, output: str
     ) -> None:
         self._sts = sts
         self._session_name = session_name
@@ -407,6 +422,7 @@ class _AccessKey(_Auth):
         self._account_id = account_id
         self._region = region
         self._prompt = prompt
+        self._output = output
 
     def perform(self, mfa_device: Optional[str], mfa_code: Optional[str]) -> None:
         if mfa_device and mfa_code:
@@ -423,6 +439,7 @@ class _AccessKey(_Auth):
         print(f'export AWS_SECRET_ACCESS_KEY="{temp_credentials["SecretAccessKey"]}"', file=sys.stdout)
         print(f'export AWS_SESSION_TOKEN="{temp_credentials["SessionToken"]}"', file=sys.stdout)
         print(f'export AWS_REGION="{self._region}"', file=sys.stdout)
+        print(f'export AWS_DEFAULT_OUTPUT="{self._output}"', file=sys.stdout)
         print("AWS environment variables are exported!\n", file=sys.stderr)
         _print_access_key(self._session_name, self._user_name, self._account_id, self._region)
         print(
@@ -437,6 +454,7 @@ class _AccessKey(_Auth):
                 "AWS_SECRET_ACCESS_KEY",
                 "AWS_SESSION_TOKEN",
                 "AWS_REGION",
+                "AWS_DEFAULT_OUTPUT",
             ),
             file=sys.stdout,
         )
@@ -444,7 +462,7 @@ class _AccessKey(_Auth):
 
 
 def _session_access_key(
-    name: str, access_key: str, secret_key: str, region: str, role_arn: Optional[str], prompt: ShellPrompt
+    name: str, access_key: str, secret_key: str, region: str, output: str, role_arn: Optional[str], prompt: ShellPrompt
 ) -> None:
     sts = Session().create_client(
         "sts", aws_access_key_id=access_key, aws_secret_access_key=secret_key, region_name=region
@@ -460,9 +478,9 @@ def _session_access_key(
     account_id = caller_identity["Account"]
     iam_user = arn.split(":user/")[-1]
     if role_arn:
-        auth = _AssumeRole(sts, name, iam_user, account_id, region, role_arn, prompt)
+        auth = _AssumeRole(sts, name, iam_user, account_id, region, role_arn, prompt, output)
     else:
-        auth = _AccessKey(sts, name, iam_user, account_id, region, prompt)
+        auth = _AccessKey(sts, name, iam_user, account_id, region, prompt, output)
     mfas: Dict[str, str] = {
         mfa["SerialNumber"].split("/")[-1]: mfa["SerialNumber"]
         for mfa in Session()
@@ -643,6 +661,12 @@ def main():
         help="An AWS region where the AWS resources are located ('--ic-region' value is used if unset).",
     )
     session_ic.add_argument(
+        "--output",
+        default="json",
+        choices=["json", "text", "table", "yaml", "yaml-stream"],
+        help="An output format (default: 'json').",
+    )
+    session_ic.add_argument(
         "--no-prompt-update", action="store_true", help="Disables a shell prompt modification if specified"
     )
 
@@ -662,6 +686,12 @@ def main():
     session_ak.add_argument("--region", metavar="region", required=True, help="AWS Region")
     session_ak.add_argument("--assume-role-arn", metavar="role", required=False, help="A role to assume")
     session_ak.add_argument(
+        "--output",
+        default="json",
+        choices=["json", "text", "table", "yaml", "yaml-stream"],
+        help="An output format (default: 'json').",
+    )
+    session_ak.add_argument(
         "--no-prompt-update", action="store_true", help="Disables a shell prompt update if specified"
     )
 
@@ -678,6 +708,7 @@ def main():
             args.account_id,
             args.role_name,
             args.aws_region,
+            args.output,
             ShellPrompt(enabled=not args.no_prompt_update),
         )
     elif args.subcommand == "session-access-key":
@@ -687,6 +718,7 @@ def main():
             args.access_key,
             args.secret_access_key,
             args.region,
+            args.output,
             args.assume_role_arn,
             ShellPrompt(enabled=not args.no_prompt_update),
         )
