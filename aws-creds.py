@@ -8,7 +8,7 @@ import os
 import sys
 from typing import Dict, Optional, Literal, TextIO
 
-__version__ = "0.7.1+20240627-152643"
+__version__ = "0.7.1+20240627-154955"
 _prog = Path(__file__).name.split(".")[0]
 _dependencies_home = Path.home().joinpath(".cache").joinpath(_prog)
 _clear_session_function_name = f"{_prog}-clear-session"
@@ -20,7 +20,7 @@ def _remove_contents(directory: Path) -> None:
             _remove_contents(entry)
             entry.rmdir()
         else:
-            if str(entry).startswith(".ic."):
+            if ".ic." in str(entry):
                 continue
             entry.unlink()
 
@@ -32,18 +32,31 @@ def pip_wtf(dependencies: str) -> None:
     dependencies_hash = _dependencies_home.joinpath(f".d.{sha1(dependencies.encode()).hexdigest()}")
     if dependencies_hash.exists():
         return
-    print("Cache directory:", _dependencies_home)
     _dependencies_home.mkdir(exist_ok=True)
     _remove_contents(_dependencies_home)
     dependencies_hash.touch(exist_ok=True)
-    os.system(" ".join([sys.executable, "-m", "pip", "install", "--target", str(_dependencies_home), dependencies]))
+    os.system(
+        " ".join(
+            [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "--quiet",
+                "--quiet",
+                "--target",
+                str(_dependencies_home),
+                dependencies,
+            ]
+        )
+    )
 
 
 if sys.version_info < (3, 7):
     print("Support Python 3.7 or above", file=sys.stderr)
     exit(1)
 
-pip_wtf("boto3==1.34.40")
+pip_wtf("boto3==1.34.135")
 from botocore.session import Session  # noqa: E402
 
 
