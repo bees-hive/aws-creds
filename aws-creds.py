@@ -8,7 +8,7 @@ import os
 import sys
 from typing import Dict, Optional, Literal, TextIO
 
-__version__ = "0.7.1+20240627-154955"
+__version__ = "0.7.1+20240821-122541"
 _prog = Path(__file__).name.split(".")[0]
 _dependencies_home = Path.home().joinpath(".cache").joinpath(_prog)
 _clear_session_function_name = f"{_prog}-clear-session"
@@ -250,6 +250,7 @@ def _session_ic(
     print(f'export AWS_CREDS_ACCOUNT_NAME="{account_name}"', file=sys.stdout)
     print(f'export AWS_CREDS_ACCOUNT_ID="{account_id}"', file=sys.stdout)
     print(f'export AWS_CREDS_ROLE_NAME="{role}"', file=sys.stdout)
+    print(f'export AWS_DEFAULT_REGION="{aws_region}"', file=sys.stdout)
     print(f'export AWS_REGION="{aws_region}"', file=sys.stdout)
     print(f'export AWS_DEFAULT_OUTPUT="{output}"', file=sys.stdout)
     print(f'export AWS_ACCESS_KEY_ID="{role_creds["accessKeyId"]}"', file=sys.stdout)
@@ -265,6 +266,7 @@ def _session_ic(
             "AWS_CREDS_ACCOUNT_NAME",
             "AWS_CREDS_ACCOUNT_ID",
             "AWS_CREDS_ROLE_NAME",
+            "AWS_DEFAULT_REGION",
             "AWS_REGION",
             "AWS_DEFAULT_OUTPUT",
             "AWS_ACCESS_KEY_ID",
@@ -393,6 +395,7 @@ class _AssumeRole(_Auth):
         print(f'export AWS_ACCESS_KEY_ID="{temp_credentials["AccessKeyId"]}"', file=sys.stdout)
         print(f'export AWS_SECRET_ACCESS_KEY="{temp_credentials["SecretAccessKey"]}"', file=sys.stdout)
         print(f'export AWS_SESSION_TOKEN="{temp_credentials["SessionToken"]}"', file=sys.stdout)
+        print(f'export AWS_DEFAULT_REGION="{self._region}"', file=sys.stdout)
         print(f'export AWS_REGION="{self._region}"', file=sys.stdout)
         print(f'export AWS_DEFAULT_OUTPUT="{self._output}"', file=sys.stdout)
         print("AWS environment variables are exported!\n", file=sys.stderr)
@@ -409,6 +412,7 @@ class _AssumeRole(_Auth):
                 "AWS_ACCESS_KEY_ID",
                 "AWS_SECRET_ACCESS_KEY",
                 "AWS_SESSION_TOKEN",
+                "AWS_DEFAULT_REGION",
                 "AWS_REGION",
                 "AWS_DEFAULT_OUTPUT",
             ),
@@ -451,6 +455,7 @@ class _AccessKey(_Auth):
         print(f'export AWS_ACCESS_KEY_ID="{temp_credentials["AccessKeyId"]}"', file=sys.stdout)
         print(f'export AWS_SECRET_ACCESS_KEY="{temp_credentials["SecretAccessKey"]}"', file=sys.stdout)
         print(f'export AWS_SESSION_TOKEN="{temp_credentials["SessionToken"]}"', file=sys.stdout)
+        print(f'export AWS_DEFAULT_REGION="{self._region}"', file=sys.stdout)
         print(f'export AWS_REGION="{self._region}"', file=sys.stdout)
         print(f'export AWS_DEFAULT_OUTPUT="{self._output}"', file=sys.stdout)
         print("AWS environment variables are exported!\n", file=sys.stderr)
@@ -466,6 +471,7 @@ class _AccessKey(_Auth):
                 "AWS_ACCESS_KEY_ID",
                 "AWS_SECRET_ACCESS_KEY",
                 "AWS_SESSION_TOKEN",
+                "AWS_DEFAULT_REGION",
                 "AWS_REGION",
                 "AWS_DEFAULT_OUTPUT",
             ),
