@@ -8,7 +8,7 @@ import os
 import sys
 from typing import Dict, Optional, Literal, TextIO
 
-__version__ = "0.7.1+20240821-122541"
+__version__ = "0.7.1+20240904-175717"
 _prog = Path(__file__).name.split(".")[0]
 _dependencies_home = Path.home().joinpath(".cache").joinpath(_prog)
 _clear_session_function_name = f"{_prog}-clear-session"
@@ -550,20 +550,20 @@ def _describe_credentials() -> None:
         print(f"Cannot find AWS credentials configured by '{_prog}'.", file=sys.stderr)
 
 
-def _scan_local(alias_printer: Printer) -> None:
+def _scan_local(printer: Printer) -> None:
     local_config = Session().full_config
     print("Scanning the local AWS config files...", file=sys.stdout)
     for key, details in local_config.get("sso_sessions", {}).items():
         ic = IdentityCenter(details["sso_start_url"], details["sso_region"])
         print(f"\nThe '{key}' {ic} identified.", file=sys.stdout, end="")
-        if "y" not in input(" Generate aliases? (y/n): ").lower():
+        if "y" not in input(" Generate shell function? (y/n): ").lower():
             continue
-        _identity_center_scan(ic, alias_printer)
+        _identity_center_scan(ic, printer)
     for key, details in local_config.get("profiles", {}).items():
         if "sso_session" in details:
             continue
         print(f"\nThe '{key}' access key identified.", file=sys.stdout, end="")
-        if "y" not in input(" Generate alias? (y/n): ").lower():
+        if "y" not in input(" Generate shell function? (y/n): ").lower():
             continue
         if "role_arn" in details:
             role_arn = details["role_arn"]
@@ -578,12 +578,10 @@ def _scan_local(alias_printer: Printer) -> None:
                 source_profile["aws_secret_access_key"],
                 details["region"] or source_profile["region"],
                 role_arn,
-                alias_printer,
+                printer,
             )
         else:
-            _access_key(
-                key, details["aws_access_key_id"], details["aws_secret_access_key"], details["region"], alias_printer
-            )
+            _access_key(key, details["aws_access_key_id"], details["aws_secret_access_key"], details["region"], printer)
     print("\nScanning completed!", file=sys.stdout)
 
 
@@ -594,7 +592,7 @@ def _clear_session() -> None:
 def main():
     if len(sys.argv) == 6 and sys.argv[1] == "session-ic":
         print(f"The positional arguments are deprecated for the `{_prog} session-ic`!", file=sys.stderr)  # noqa: F821
-        print("Please update the alias as follows:\n", file=sys.stderr)  # noqa: F821
+        print("Please update the shell function as follows:\n", file=sys.stderr)  # noqa: F821
         identity_center = IdentityCenter(sys.argv[2], sys.argv[3])
         _print_identity_center_alias(
             Printer("realtime", sys.stderr), identity_center, sys.argv[4], "account-name", sys.argv[5]
@@ -614,8 +612,8 @@ def main():
     subparsers.add_parser(
         "describe-creds",
         description=f"""
-        The command describes the AWS credentials in the current shell session by looking at the environment variables.
-        Besides, this command runs every time you run `{_prog}` without arguments.
+        This command displays the current AWS credentials by inspecting the relevant environment variables in the shell
+        session. Additionally, it executes automatically whenever {_prog} is run without any arguments.
         """,
         help="describes the AWS credentials in the current shell session",
         formatter_class=lambda prog: HelpFormatter(prog, width=100),
@@ -624,22 +622,20 @@ def main():
     subparsers.add_parser(
         "scan-local",
         description=f"""
-        The command runs an interactive workflow to create the `{_prog}` shell aliases based on the local AWS CLI config.
-        Pick those aliases you want and save them to your shell configuration profile file. Once you run an alias,
-        it will authenticate a session and export the AWS session environment variables to the current shell session.
+        This command starts an interactive workflow to create {_prog} shell functions based on your local AWS CLI
+        configuration. Save the desired functions to your shell profile file for future use.
         """,
-        help="generates shell aliases for the local AWS CLI configuration",
+        help="generates shell functions for the local AWS CLI configuration",
         formatter_class=lambda prog: HelpFormatter(prog, width=100),
     )
 
     scan_ic = subparsers.add_parser(
         "scan-ic",
         description=f"""
-        The command generates all possible `{_prog}` shell aliases for each role available in an AWS IAM Identity Center.
-        Pick those aliases you want and save them to your shell configuration profile file. Once you run an alias,
-        it will authenticate a session and export the AWS session environment variables to the current shell session.
+        This command generates all possible {_prog} shell functions for each available account and role in AWS IAM
+        Identity Center. Save the desired functions to your shell profile file for future use.
         """,
-        help="generates shell aliases for an AWS IAM Identity Center",
+        help="generates shell functions for an AWS IAM Identity Center",
         formatter_class=lambda prog: HelpFormatter(prog, width=100),
     )
     scan_ic.add_argument(
@@ -655,9 +651,8 @@ def main():
     session_ic = subparsers.add_parser(
         "session-ic",
         description="""
-        The command exports the environment variables suitable for authenticating CLI tools by creating an
-        AWS login session based on the AWS IAM Identity Center role. Any AWS IAM Identity Center alias will
-        use this command to authenticate.
+        This command exports environment variables needed to authenticate CLI tools by initiating an AWS login session
+        based on the AWS IAM Identity Center role.
         """,
         help="authenticates an AWS Identity Center role",
         formatter_class=lambda prog: HelpFormatter(prog, width=100),
@@ -692,9 +687,8 @@ def main():
     session_ak = subparsers.add_parser(
         "session-access-key",
         description="""
-        The command exports the environment variables suitable for authenticating CLI tools by creating
-        an AWS login session based on the AWS Access Key. It asks to provide an MFA code if an MFA device is configured.
-        Any AWS Access Key alias will use this command to authenticate.
+        This command exports the environment variables required to authenticate CLI tools by creating an AWS login
+        session using the AWS Access Key. If an MFA device is configured, it will prompt for an MFA code.
         """,
         help="authenticates an access key",
         formatter_class=lambda prog: HelpFormatter(prog, max_help_position=35, width=100),
@@ -746,16 +740,16 @@ def main():
     elif args.subcommand == "scan-local":
         answer = ""
         while "y" not in answer and "n" not in answer:
-            answer = input("Do you want to print all aliases at the end? (y/n): ").lower()
+            answer = input("Do you want to print all shell functions at the end? (y/n): ").lower()
         if answer == "y":
             _out = Printer("end", sys.stdout)
-            _out.append("\nGenerated aliases: ")
+            _out.append("\nGenerated shell functions: ")
         else:
             _out = Printer("realtime", sys.stdout)
         _scan_local(_out)
         _out.print_all()
         if answer == "n":
-            print("\nThere are multiple aliases generated.", file=sys.stdout)
+            print("\nThere are multiple shell functions generated.", file=sys.stdout)
             if "y" in input("Do you want to print them all at once? (y/n): ").lower():
                 _out.print_all(always=True)
     else:
