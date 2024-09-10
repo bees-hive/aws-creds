@@ -8,7 +8,7 @@ import os
 import sys
 from typing import Dict, Optional, Literal, TextIO
 
-__version__ = "0.7.1+20240904-175717"
+__version__ = "0.7.1+20240910-164502"
 _prog = Path(__file__).name.split(".")[0]
 _dependencies_home = Path.home().joinpath(".cache").joinpath(_prog)
 _clear_session_function_name = f"{_prog}-clear-session"
@@ -32,6 +32,7 @@ def pip_wtf(dependencies: str) -> None:
     dependencies_hash = _dependencies_home.joinpath(f".d.{sha1(dependencies.encode()).hexdigest()}")
     if dependencies_hash.exists():
         return
+    print("Installing dependencies:", dependencies, file=sys.stderr)
     _dependencies_home.mkdir(exist_ok=True)
     _remove_contents(_dependencies_home)
     dependencies_hash.touch(exist_ok=True)
@@ -52,11 +53,11 @@ def pip_wtf(dependencies: str) -> None:
     )
 
 
-if sys.version_info < (3, 7):
-    print("Support Python 3.7 or above", file=sys.stderr)
+if sys.version_info < (3, 8):
+    print("Support Python 3.8 or above", file=sys.stderr)
     exit(1)
 
-pip_wtf("boto3==1.34.135")
+pip_wtf("boto3==1.35.16")
 from botocore.session import Session  # noqa: E402
 
 

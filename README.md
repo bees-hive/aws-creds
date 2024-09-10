@@ -96,7 +96,7 @@ credentials, `aws-creds` streamlines the management of your AWS connections.
 
 `aws-creds` is a Python script that uses `boto3` to interact with AWS APIs. Each time you run a shell
 function, `aws-creds` communicates with AWS to retrieve the necessary credentials and sets them in your shell
-environment. Designed to be lightweight and easy to use, all you need is Python 3.7 or above.
+environment. Designed to be lightweight and easy to use, all you need is Python 3.8 or above.
 
 Upon successful authentication, the following AWS-related environment variables are set:
 
