@@ -3,9 +3,11 @@
 set -o errexit
 set -o pipefail
 if test "$USER" != "extsoft"; then
-  echo "No installation allowed for '$USER'."
+  echo "Local installation has been disabled for the '$USER' user."
+  echo "To enable it, please update '.workflows/save-work-after' script."
   exit
 fi
 cd "$(git rev-parse --show-toplevel)"
-
-install -v -m 755 aws-creds.py /usr/local/bin/aws-creds
+destination="$HOME/.local/bin"
+mkdir -p "${destination}"
+install -v -m 755 aws-creds.py "${destination}/aws-creds"
