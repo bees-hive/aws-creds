@@ -8,9 +8,9 @@ import os
 import sys
 from typing import Dict, Optional, Literal, TextIO
 
-__version__ = "0.8.0"
+__version__ = "0.8.0+20250125-232943"
 _prog = Path(__file__).name.split(".")[0]
-_dependencies_home = Path.home().joinpath(".cache").joinpath(_prog)
+_cache_home = Path.home().joinpath(".cache").joinpath(_prog)
 _clear_session_function_name = f"{_prog}-clear-session"
 
 
@@ -26,15 +26,15 @@ def _remove_contents(directory: Path) -> None:
 
 
 def pip_wtf(dependencies: str) -> None:
-    sys.path = [p for p in sys.path if "-packages" not in p] + [str(_dependencies_home)]
-    os.environ["PATH"] += os.pathsep + str(_dependencies_home.joinpath("bin"))
+    sys.path = [p for p in sys.path if "-packages" not in p] + [str(_cache_home)]
+    os.environ["PATH"] += os.pathsep + str(_cache_home.joinpath("bin"))
     os.environ["PYTHONPATH"] = os.pathsep.join(sys.path)
-    dependencies_hash = _dependencies_home.joinpath(f".d.{sha1(dependencies.encode()).hexdigest()}")
+    dependencies_hash = _cache_home.joinpath(f".d.{sha1(dependencies.encode()).hexdigest()}")
     if dependencies_hash.exists():
         return
     print("Installing dependencies:", dependencies, file=sys.stderr)
-    _dependencies_home.mkdir(exist_ok=True)
-    _remove_contents(_dependencies_home)
+    _cache_home.mkdir(parents=True, exist_ok=True)
+    _remove_contents(_cache_home)
     dependencies_hash.touch(exist_ok=True)
     os.system(
         " ".join(
@@ -46,7 +46,7 @@ def pip_wtf(dependencies: str) -> None:
                 "--quiet",
                 "--quiet",
                 "--target",
-                str(_dependencies_home),
+                str(_cache_home),
                 dependencies,
             ]
         )
@@ -84,7 +84,7 @@ class IdentityCenter:
     ic_region: str
 
     def cache_file(self) -> Path:
-        return _dependencies_home.joinpath(f".ic.{sha1(bytes(self.ic_start_url, 'utf-8')).hexdigest()}")
+        return _cache_home.joinpath(f".ic.{sha1(bytes(self.ic_start_url, 'utf-8')).hexdigest()}")
 
     def __str__(self) -> str:
         return f"AWS IAM Identity Center ({self.ic_start_url}, {self.ic_region})"
