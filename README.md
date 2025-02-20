@@ -6,21 +6,21 @@
 
 - [Motivation](#motivation)
 - [Background](#background)
-    - [Primary AWS Credential Types](#primary-aws-credential-types)
-    - [Standard AWS Credentials Management](#standard-aws-credentials-management)
-    - [How `aws-creds` Simplifies AWS Credentials Management](#how-aws-creds-simplifies-aws-credentials-management)
+  - [Primary AWS Credential Types](#primary-aws-credential-types)
+  - [Standard AWS Credentials Management](#standard-aws-credentials-management)
+  - [How `aws-creds` Simplifies AWS Credentials Management](#how-aws-creds-simplifies-aws-credentials-management)
 - [Implementation](#implementation)
 - [Installation](#installation)
 - [Usage](#usage)
-    - [`aws-creds`](#aws-creds)
-    - [`aws-creds describe-creds`](#aws-creds-describe-creds)
-    - [`aws-creds scan-local`](#aws-creds-scan-local)
-    - [`aws-creds scan-ic`](#aws-creds-scan-ic)
-    - [`aws-creds session-ic`](#aws-creds-session-ic)
-    - [`aws-creds session-access-key`](#aws-creds-session-access-key)
+  - [`aws-creds`](#aws-creds)
+  - [`aws-creds describe-creds`](#aws-creds-describe-creds)
+  - [`aws-creds scan-local`](#aws-creds-scan-local)
+  - [`aws-creds scan-ic`](#aws-creds-scan-ic)
+  - [`aws-creds session-ic`](#aws-creds-session-ic)
+  - [`aws-creds session-access-key`](#aws-creds-session-access-key)
 - [Tips and Tricks](#tips-and-tricks)
-    - [Saving the Shell Functions Guide](#saving-the-shell-functions-guide)
-    - [Automating AWS Region Detection](#automating-aws-region-detection)
+  - [Saving the Shell Functions Guide](#saving-the-shell-functions-guide)
+  - [Automating AWS Region Detection](#automating-aws-region-detection)
 
 ## Motivation
 
@@ -37,9 +37,9 @@ what really matters: building and deploying applications.
 
 ### Primary AWS Credential Types
 
-Before diving into `aws-creds`, it’s helpful to understand the most common AWS credentials types and how they're used:
+Before diving into `aws-creds`, it's helpful to understand the most common AWS credentials types and how they're used:
 
-1. AWS IAM Identity Center (formerly AWS SSO) allows users to authenticate through a centralized access management
+1. AWS IAM Identity Center allows users to authenticate through a centralized access management
    system and retrieve temporary credentials for AWS CLI usage.
 2. IAM Users consist of an access key ID and a secret access key, used for programmatic access to AWS services via the
    CLI. MFA (Multi-Factor Authentication) could be enabled as an additional security layer that can be configured to
@@ -253,16 +253,17 @@ options:
 
 Once `aws-creds` generates the shell functions for your AWS connections, the next crucial step is to save these
 functions
-so that they’re always available when you need them. This section walks you through the process of adding new functions
+so that they're always available when you need them. This section walks you through the process of adding new functions
 to your shell configuration profile and how to use them effectively.
 
 1. **Locate your Shell configuration file**: Depending on the shell you use (e.g., Bash, Zsh), the configuration file
    where you need to save the functions might vary: for Bash users, the file is usually `~/.bashrc`; for Zsh users, the
-   file is typically `~/.zshrc`. If you’re using a different shell, find the appropriate configuration file where
+   file is typically `~/.zshrc`. If you're using a different shell, find the appropriate configuration file where
    functions and environment variables are set during the start of a new shell session.
 2. **Add functions**: Carefully read the output of any `aws-creds scan-*` commands and copy the desired generated
    functions to the shell configuration file.
    It typically provides them in a format like this:
+
    ```shell
    aws-creds-profile1() {
      eval "$(
@@ -275,6 +276,7 @@ to your shell configuration profile and how to use them effectively.
      )"
    }
    ```
+
 3. **Activate functions:** Save and close the configuration file. You can start new terminal sessions to see the new
    functions available. Or to apply the changes immediately without having to close and reopen your terminal, reload the
    shell configuration
