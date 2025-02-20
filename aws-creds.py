@@ -8,7 +8,7 @@ import os
 import sys
 from typing import Dict, Optional, Literal, TextIO
 
-__version__ = "0.8.0+20250220-030528"
+__version__ = "0.8.0+20250220-041357"
 _prog = Path(__file__).name.split(".")[0]
 _cache_home = Path.home().joinpath(".cache").joinpath(_prog)
 _clear_session_function_name = f"{_prog}-clear-session"
@@ -91,9 +91,21 @@ class IdentityCenter:
 
 
 class ShellPrompt:
-    def __init__(self, *, enabled: bool, custom_prompt: Optional[str] = None) -> None:
+    colors = {
+        "black": 0,
+        "red": 1,
+        "green": 2,
+        "yellow": 3,
+        "blue": 4,
+        "magenta": 5,
+        "cyan": 6,
+        "white": 7,
+    }
+
+    def __init__(self, *, enabled: bool, custom_prompt: Optional[str] = None, color: str = "red") -> None:
         self._enabled = enabled
         self._custom_prompt = custom_prompt
+        self._color = self.colors.get(color, color)  # Use mapped value or raw number
 
     def update(self, default_prefix: str) -> None:
         if not self._enabled:
@@ -102,20 +114,25 @@ class ShellPrompt:
         print('export AWS_CREDS_ORIGIN_PS1="${AWS_CREDS_ORIGIN_PS1:-${PS1:-}}"', file=sys.stdout)
 
         if self._custom_prompt:
-            prompt_prefix = self._custom_prompt.replace("'", "'\\''")
-            print(f'export AWS_CREDS_PROMPT_PREFIX="{prompt_prefix}"', file=sys.stdout)
+            print(
+                f'export AWS_CREDS_PROMPT_PREFIX="$(tput setaf {self._color}){self._custom_prompt}$(tput sgr0)"',
+                file=sys.stdout,
+            )
         else:
-            variable_ = """
+            print(
+                """
+            color=$(tput setaf {color_num})
             current_shell=$(ps -p $$ | awk "NR==2" | awk '{ print $4 }' | tr -d '-')
             if [[ $current_shell == 'bash' ]]; then
-              export AWS_CREDS_PROMPT_PREFIX='\\[\\e[1;31m\\]('${FUNCNAME[0]}')\\[\\e[0m\\]'
+              export AWS_CREDS_PROMPT_PREFIX="$color('${FUNCNAME[0]}')$(tput sgr0)"
             elif [[ $current_shell == 'zsh' ]]; then
-              export AWS_CREDS_PROMPT_PREFIX='%B%F{red}('$funcstack[2]')%f%b'
+              export AWS_CREDS_PROMPT_PREFIX="$color('$funcstack[2]')$(tput sgr0)"
             else
-              export AWS_CREDS_PROMPT_PREFIX="({default})"
+              export AWS_CREDS_PROMPT_PREFIX="$color({default})$(tput sgr0)"
             fi
-            """
-            print(variable_.replace("{default}", default_prefix), file=sys.stdout)
+            """.replace("{color_num}", str(self._color)).replace("{default}", default_prefix),
+                file=sys.stdout,
+            )
 
         print('export PS1="${AWS_CREDS_PROMPT_PREFIX} ${AWS_CREDS_ORIGIN_PS1}"', file=sys.stdout)
 
@@ -683,6 +700,13 @@ def main():
     session_ic.add_argument(
         "--prompt-text", metavar="text", help="Custom text to show in shell prompt (default: role@account)"
     )
+    session_ic.add_argument(
+        "--prompt-color",
+        metavar="color",
+        type=lambda value: str(int(value)) if value and value.isdigit() else ShellPrompt.colors.get(value or "red", 1),
+        default="red",
+        help="Specifies the shell prompt color either by a numeric tput color code or by one of these predefined names: black, red, green, yellow, blue, magenta, cyan, or white",
+    )
 
     session_ak = subparsers.add_parser(
         "session-access-key",
@@ -710,6 +734,13 @@ def main():
     session_ak.add_argument(
         "--prompt-text", metavar="text", help="Custom text to show in shell prompt (default: session name)"
     )
+    session_ak.add_argument(
+        "--prompt-color",
+        metavar="color",
+        type=lambda value: str(int(value)) if value and value.isdigit() else ShellPrompt.colors.get(value or "red", 1),
+        default="red",
+        help="Specifies the shell prompt color either by a numeric tput color code or by one of these predefined names: black, red, green, yellow, blue, magenta, cyan, or white",
+    )
 
     args = parser.parse_args()
 
@@ -725,7 +756,7 @@ def main():
             args.role_name,
             args.aws_region,
             args.output,
-            ShellPrompt(enabled=not args.no_prompt_update, custom_prompt=args.prompt_text),
+            ShellPrompt(enabled=not args.no_prompt_update, custom_prompt=args.prompt_text, color=args.prompt_color),
         )
     elif args.subcommand == "session-access-key":
         _clear_session()
@@ -736,7 +767,7 @@ def main():
             args.region,
             args.output,
             args.assume_role_arn,
-            ShellPrompt(enabled=not args.no_prompt_update, custom_prompt=args.prompt_text),
+            ShellPrompt(enabled=not args.no_prompt_update, custom_prompt=args.prompt_text, color=args.prompt_color),
         )
     elif args.subcommand == "describe-creds":
         _describe_credentials()
