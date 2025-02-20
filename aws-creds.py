@@ -8,7 +8,7 @@ import os
 import sys
 from typing import Dict, Optional, Literal, TextIO
 
-__version__ = "0.8.0+20250126-000204"
+__version__ = "0.8.0+20250220-022006"
 _prog = Path(__file__).name.split(".")[0]
 _cache_home = Path.home().joinpath(".cache").joinpath(_prog)
 _clear_session_function_name = f"{_prog}-clear-session"
@@ -591,17 +591,6 @@ def _clear_session() -> None:
 
 
 def main():
-    if len(sys.argv) == 6 and sys.argv[1] == "session-ic":
-        print(f"The positional arguments are deprecated for the `{_prog} session-ic`!", file=sys.stderr)  # noqa: F821
-        print("Please update the shell function as follows:\n", file=sys.stderr)  # noqa: F821
-        identity_center = IdentityCenter(sys.argv[2], sys.argv[3])
-        _print_identity_center_alias(
-            Printer("realtime", sys.stderr), identity_center, sys.argv[4], "account-name", sys.argv[5]
-        )
-        print("\n\n", file=sys.stderr)  # noqa: F821
-        _clear_session()
-        _session_ic(identity_center, sys.argv[4], sys.argv[5], sys.argv[3], ShellPrompt(enabled=False))
-        exit(0)
     parser = ArgumentParser(
         description="Painless CLI authentication using various AWS identities.",
         prog=_prog,
