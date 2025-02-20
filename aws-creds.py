@@ -8,7 +8,7 @@ import os
 import sys
 from typing import Dict, Optional, Literal, TextIO
 
-__version__ = "0.8.0+20250220-023718"
+__version__ = "0.8.0+20250220-030528"
 _prog = Path(__file__).name.split(".")[0]
 _cache_home = Path.home().joinpath(".cache").joinpath(_prog)
 _clear_session_function_name = f"{_prog}-clear-session"
@@ -91,26 +91,33 @@ class IdentityCenter:
 
 
 class ShellPrompt:
-    def __init__(self, *, enabled: bool) -> None:
+    def __init__(self, *, enabled: bool, custom_prompt: Optional[str] = None) -> None:
         self._enabled = enabled
+        self._custom_prompt = custom_prompt
 
     def update(self, default_prefix: str) -> None:
         if not self._enabled:
             return
-        variable_ = """
-        current_shell=$(ps -p $$ | awk "NR==2" | awk '{ print $4 }' | tr -d '-')
-        if [[ $current_shell == 'bash' ]]; then
-          export AWS_CREDS_PROMPT_PREFIX='\\[\\e[1;31m\\]('${FUNCNAME[0]}')\\[\\e[0m\\]'
-        elif [[ $current_shell == 'zsh' ]]; then
-          export AWS_CREDS_PROMPT_PREFIX='%B%F{red}('$funcstack[2]')%f%b'
-        else
-          export AWS_CREDS_PROMPT_PREFIX="({default})"
-        fi
-        current_prompt="${AWS_CREDS_ORIGIN_PS1:-${PS1:-}}"
-        export AWS_CREDS_ORIGIN_PS1="${current_prompt}"
-        export PS1="${AWS_CREDS_PROMPT_PREFIX} ${current_prompt}"
-        """
-        print(variable_.replace("{default}", default_prefix), file=sys.stdout)
+
+        print('export AWS_CREDS_ORIGIN_PS1="${AWS_CREDS_ORIGIN_PS1:-${PS1:-}}"', file=sys.stdout)
+
+        if self._custom_prompt:
+            prompt_prefix = self._custom_prompt.replace("'", "'\\''")
+            print(f'export AWS_CREDS_PROMPT_PREFIX="{prompt_prefix}"', file=sys.stdout)
+        else:
+            variable_ = """
+            current_shell=$(ps -p $$ | awk "NR==2" | awk '{ print $4 }' | tr -d '-')
+            if [[ $current_shell == 'bash' ]]; then
+              export AWS_CREDS_PROMPT_PREFIX='\\[\\e[1;31m\\]('${FUNCNAME[0]}')\\[\\e[0m\\]'
+            elif [[ $current_shell == 'zsh' ]]; then
+              export AWS_CREDS_PROMPT_PREFIX='%B%F{red}('$funcstack[2]')%f%b'
+            else
+              export AWS_CREDS_PROMPT_PREFIX="({default})"
+            fi
+            """
+            print(variable_.replace("{default}", default_prefix), file=sys.stdout)
+
+        print('export PS1="${AWS_CREDS_PROMPT_PREFIX} ${AWS_CREDS_ORIGIN_PS1}"', file=sys.stdout)
 
 
 def _new_session_token(identity_center: IdentityCenter) -> str:
@@ -673,6 +680,9 @@ def main():
     session_ic.add_argument(
         "--no-prompt-update", action="store_true", help="Disables a shell prompt modification if specified"
     )
+    session_ic.add_argument(
+        "--prompt-text", metavar="text", help="Custom text to show in shell prompt (default: role@account)"
+    )
 
     session_ak = subparsers.add_parser(
         "session-access-key",
@@ -697,6 +707,9 @@ def main():
     session_ak.add_argument(
         "--no-prompt-update", action="store_true", help="Disables a shell prompt update if specified"
     )
+    session_ak.add_argument(
+        "--prompt-text", metavar="text", help="Custom text to show in shell prompt (default: session name)"
+    )
 
     args = parser.parse_args()
 
@@ -712,7 +725,7 @@ def main():
             args.role_name,
             args.aws_region,
             args.output,
-            ShellPrompt(enabled=not args.no_prompt_update),
+            ShellPrompt(enabled=not args.no_prompt_update, custom_prompt=args.prompt_text),
         )
     elif args.subcommand == "session-access-key":
         _clear_session()
@@ -723,7 +736,7 @@ def main():
             args.region,
             args.output,
             args.assume_role_arn,
-            ShellPrompt(enabled=not args.no_prompt_update),
+            ShellPrompt(enabled=not args.no_prompt_update, custom_prompt=args.prompt_text),
         )
     elif args.subcommand == "describe-creds":
         _describe_credentials()

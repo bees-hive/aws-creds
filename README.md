@@ -204,7 +204,7 @@ options:
 ~ aws-creds session-ic --help
 usage: aws-creds session-ic [-h] --ic-start-url URL --ic-region region --account-id id --role-name
                             name [--aws-region region] [--output {json,text,table,yaml,yaml-stream}]
-                            [--no-prompt-update]
+                            [--no-prompt-update] [--prompt-text text]
 
 This command exports environment variables needed to authenticate CLI tools by initiating an AWS
 login session based on the AWS IAM Identity Center role.
@@ -220,6 +220,7 @@ options:
   --output {json,text,table,yaml,yaml-stream}
                         An output format (default: 'json').
   --no-prompt-update    Disables a shell prompt modification if specified
+  --prompt-text text    Custom text to show in shell prompt (default: role@account)
 ```
 
 ### `aws-creds session-access-key`
@@ -229,7 +230,7 @@ options:
 usage: aws-creds session-access-key [-h] --session-name name --access-key key --secret-access-key
                                     secret-key --region region [--assume-role-arn role]
                                     [--output {json,text,table,yaml,yaml-stream}]
-                                    [--no-prompt-update]
+                                    [--no-prompt-update] [--prompt-text text]
 
 This command exports the environment variables required to authenticate CLI tools by creating an AWS
 login session using the AWS Access Key. If an MFA device is configured, it will prompt for an MFA
@@ -245,6 +246,7 @@ options:
   --output {json,text,table,yaml,yaml-stream}
                                    An output format (default: 'json').
   --no-prompt-update               Disables a shell prompt update if specified
+  --prompt-text text               Custom text to show in shell prompt (default: session name)
 ```
 
 ## Tips and Tricks
