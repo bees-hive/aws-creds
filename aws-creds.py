@@ -8,7 +8,7 @@ import os
 import sys
 from typing import Dict, Optional, Literal, TextIO
 
-__version__ = "0.8.0+20250220-041357"
+__version__ = "0.8.0+20250224-173951"
 _prog = Path(__file__).name.split(".")[0]
 _cache_home = Path.home().joinpath(".cache").joinpath(_prog)
 _clear_session_function_name = f"{_prog}-clear-session"
@@ -217,25 +217,22 @@ def _identity_center_scan(ic: IdentityCenter, printer: Printer) -> None:
         account_id = account["accountId"]
         account_roles = sso.list_account_roles(accessToken=token, accountId=account_id)
         for role in account_roles["roleList"]:
-            _print_identity_center_alias(printer, ic, account_id, account_name, role["roleName"])
-
-
-def _print_identity_center_alias(
-    printer: Printer, ic: IdentityCenter, account_id: str, account_name: str, role_name: str
-) -> None:
-    printer.append(
-        f"{_prog}-{account_name}-{role_name}".lower().replace(" ", "-").replace(".", "")
-        + "() {\n"
-        + '  eval "$(\n'
-        + f"    {_prog} session-ic \\\n"
-        + f"      --ic-start-url {ic.ic_start_url} \\\n"
-        + f"      --ic-region {ic.ic_region} \\\n"
-        + f"      --account-id {account_id} \\\n"
-        + f"      --aws-region {ic.ic_region} \\\n"
-        + f"      --role-name {role_name}\n"
-        + '  )"\n'
-        + "}"
-    )
+            role_name = role["roleName"]
+            printer.append(
+                f"{_prog}-{account_name}-{role_name}".lower().replace(" ", "-").replace(".", "")
+                + "() {\n"
+                + '  eval "$(\n'
+                + f"    {_prog} session-ic \\\n"
+                + f"      --ic-start-url {ic.ic_start_url} \\\n"
+                + f"      --ic-region {ic.ic_region} \\\n"
+                + f"      --account-id {account_id} \\\n"
+                + f"      --aws-region {ic.ic_region} \\\n"
+                + f"      --role-name {role_name} \\\n"
+                + f"      --prompt-text '{role_name}@{account_name}' \\\n"
+                + "      --prompt-color 'red'\n"
+                + '  )"\n'
+                + "}"
+            )
 
 
 def _clear_session_function(prompt_variable: str, *variables: str) -> str:
@@ -332,6 +329,8 @@ def _access_key(name: str, access_key: str, secret_key: str, region: str, printe
         + f"      --access-key {access_key} \\\n"
         + f"      --secret-access-key {secret_key} \\\n"
         + f"      --region {region} \\\n"
+        + f"      --prompt-text '{name}' \\\n"
+        + "      --prompt-color 'red'\n"
         + '  )"\n}'
     )
 
@@ -363,6 +362,8 @@ def _access_key_assume_role(
         + f"      --secret-access-key {secret_key} \\\n"
         + f"      --region {region} \\\n"
         + f"      --assume-role-arn {role_arn} \\\n"
+        + f"      --prompt-text '{name}' \\\n"
+        + "      --prompt-color 'red'\n"
         + '  )"\n}'
     )
 
