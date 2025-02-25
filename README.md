@@ -187,7 +187,7 @@ options:
 
 ```shell
 ~ aws-creds scan-ic --help
-usage: aws-creds scan-ic [-h] --ic-start-url URL --ic-region region
+usage: aws-creds scan-ic [-h] [--ic-start-url URL] [--ic-region region]
 
 This command generates all possible aws-creds shell functions for each available account and role in
 AWS IAM Identity Center. Save the desired functions to your shell profile file for future use.

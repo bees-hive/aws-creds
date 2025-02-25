@@ -8,7 +8,7 @@ import os
 import sys
 from typing import Dict, Optional, Literal, TextIO
 
-__version__ = "0.8.0+20250224-173951"
+__version__ = "0.8.0+20250225-091421"
 _prog = Path(__file__).name.split(".")[0]
 _cache_home = Path.home().joinpath(".cache").joinpath(_prog)
 _clear_session_function_name = f"{_prog}-clear-session"
@@ -656,11 +656,18 @@ def main():
     scan_ic.add_argument(
         "--ic-start-url",
         metavar="URL",
-        required=True,
         help="AWS IAM Identity Center start URL (like `https://xxxxxx.awsapps.com/start`)",
+        required=False,
+        default="",
+        type=lambda u: u or input("AWS IAM Identity Center start URL (like `https://xxxxxx.awsapps.com/start`): "),
     )
     scan_ic.add_argument(
-        "--ic-region", metavar="region", required=True, help="AWS IAM Identity Center region (like `us-east-1`)"
+        "--ic-region",
+        metavar="region",
+        help="AWS IAM Identity Center region (like `us-east-1`)",
+        required=False,
+        default="",
+        type=lambda r: r or input("AWS IAM Identity Center region (like `us-east-1`): "),
     )
 
     session_ic = subparsers.add_parser(
