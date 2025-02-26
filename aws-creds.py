@@ -8,7 +8,7 @@ import os
 import sys
 from typing import Dict, Optional, Literal, TextIO
 
-__version__ = "0.8.0+20250225-091421"
+__version__ = "0.8.0+20250225-222817"
 _prog = Path(__file__).name.split(".")[0]
 _cache_home = Path.home().joinpath(".cache").joinpath(_prog)
 _clear_session_function_name = f"{_prog}-clear-session"
@@ -115,7 +115,7 @@ class ShellPrompt:
 
         if self._custom_prompt:
             print(
-                f'export AWS_CREDS_PROMPT_PREFIX="$(tput setaf {self._color}){self._custom_prompt}$(tput sgr0)"',
+                f'export AWS_CREDS_PROMPT_PREFIX="$(tput setaf {self._color})[{self._custom_prompt}]$(tput sgr0)"',
                 file=sys.stdout,
             )
         else:
@@ -124,11 +124,11 @@ class ShellPrompt:
             color=$(tput setaf {color_num})
             current_shell=$(ps -p $$ | awk "NR==2" | awk '{ print $4 }' | tr -d '-')
             if [[ $current_shell == 'bash' ]]; then
-              export AWS_CREDS_PROMPT_PREFIX="$color('${FUNCNAME[0]}')$(tput sgr0)"
+              export AWS_CREDS_PROMPT_PREFIX="$color[${FUNCNAME[0]}]$(tput sgr0)"
             elif [[ $current_shell == 'zsh' ]]; then
-              export AWS_CREDS_PROMPT_PREFIX="$color('$funcstack[2]')$(tput sgr0)"
+              export AWS_CREDS_PROMPT_PREFIX="$color[$funcstack[2]]$(tput sgr0)"
             else
-              export AWS_CREDS_PROMPT_PREFIX="$color({default})$(tput sgr0)"
+              export AWS_CREDS_PROMPT_PREFIX="$color[{default}]$(tput sgr0)"
             fi
             """.replace("{color_num}", str(self._color)).replace("{default}", default_prefix),
                 file=sys.stdout,
@@ -228,7 +228,7 @@ def _identity_center_scan(ic: IdentityCenter, printer: Printer) -> None:
                 + f"      --account-id {account_id} \\\n"
                 + f"      --aws-region {ic.ic_region} \\\n"
                 + f"      --role-name {role_name} \\\n"
-                + f"      --prompt-text '{role_name}@{account_name}' \\\n"
+                + f"      --prompt-text '[{role_name}@{account_name}]' \\\n"
                 + "      --prompt-color 'red'\n"
                 + '  )"\n'
                 + "}"
@@ -329,7 +329,7 @@ def _access_key(name: str, access_key: str, secret_key: str, region: str, printe
         + f"      --access-key {access_key} \\\n"
         + f"      --secret-access-key {secret_key} \\\n"
         + f"      --region {region} \\\n"
-        + f"      --prompt-text '{name}' \\\n"
+        + f"      --prompt-text '[{name}]' \\\n"
         + "      --prompt-color 'red'\n"
         + '  )"\n}'
     )
@@ -362,7 +362,7 @@ def _access_key_assume_role(
         + f"      --secret-access-key {secret_key} \\\n"
         + f"      --region {region} \\\n"
         + f"      --assume-role-arn {role_arn} \\\n"
-        + f"      --prompt-text '{name}' \\\n"
+        + f"      --prompt-text '[{name}]' \\\n"
         + "      --prompt-color 'red'\n"
         + '  )"\n}'
     )
@@ -627,36 +627,37 @@ def main():
     subparsers.add_parser(
         "describe-creds",
         description=f"""
-        This command displays the current AWS credentials by inspecting the relevant environment variables in the shell
-        session. Additionally, it executes automatically whenever {_prog} is run without any arguments.
+        Displays the current AWS credentials by inspecting the relevant environment variables
+        in the shell session. Additionally, this command executes automatically whenever
+        {_prog} is run without any arguments.
         """,
-        help="describes the AWS credentials in the current shell session",
+        help="Describe the AWS credentials in the current shell session.",
         formatter_class=lambda prog: HelpFormatter(prog, width=100),
     )
 
     subparsers.add_parser(
         "scan-local",
         description=f"""
-        This command starts an interactive workflow to create {_prog} shell functions based on your local AWS CLI
-        configuration. Save the desired functions to your shell profile file for future use.
+        Starts an interactive workflow to create {_prog} shell functions based on your local
+        AWS CLI configuration. Save the generated functions to your shell profile for future use.
         """,
-        help="generates shell functions for the local AWS CLI configuration",
+        help="Generate shell functions for the local AWS CLI configuration.",
         formatter_class=lambda prog: HelpFormatter(prog, width=100),
     )
 
     scan_ic = subparsers.add_parser(
         "scan-ic",
         description=f"""
-        This command generates all possible {_prog} shell functions for each available account and role in AWS IAM
-        Identity Center. Save the desired functions to your shell profile file for future use.
+        Generates all possible {_prog} shell functions for each available account and role in
+        AWS IAM Identity Center. Save the generated functions to your shell profile for future use.
         """,
-        help="generates shell functions for an AWS IAM Identity Center",
+        help="Generate shell functions for AWS IAM Identity Center.",
         formatter_class=lambda prog: HelpFormatter(prog, width=100),
     )
     scan_ic.add_argument(
         "--ic-start-url",
         metavar="URL",
-        help="AWS IAM Identity Center start URL (like `https://xxxxxx.awsapps.com/start`)",
+        help="AWS IAM Identity Center start URL (e.g., https://xxxxxx.awsapps.com/start).",
         required=False,
         default="",
         type=lambda u: u or input("AWS IAM Identity Center start URL (like `https://xxxxxx.awsapps.com/start`): "),
@@ -664,7 +665,7 @@ def main():
     scan_ic.add_argument(
         "--ic-region",
         metavar="region",
-        help="AWS IAM Identity Center region (like `us-east-1`)",
+        help="AWS IAM Identity Center region (e.g., us-east-1).",
         required=False,
         default="",
         type=lambda r: r or input("AWS IAM Identity Center region (like `us-east-1`): "),
@@ -673,81 +674,82 @@ def main():
     session_ic = subparsers.add_parser(
         "session-ic",
         description="""
-        This command exports environment variables needed to authenticate CLI tools by initiating an AWS login session
-        based on the AWS IAM Identity Center role.
+        Exports environment variables needed to authenticate CLI tools by initiating an AWS
+        login session based on the specified AWS IAM Identity Center role.
         """,
-        help="authenticates an AWS Identity Center role",
+        help="Authenticate an AWS Identity Center role.",
         formatter_class=lambda prog: HelpFormatter(prog, width=100),
     )
     session_ic.add_argument(
         "--ic-start-url",
         metavar="URL",
         required=True,
-        help="AWS IAM Identity Center start URL (like `https://xxxxxx.awsapps.com/start`)",
+        help="AWS IAM Identity Center start URL (e.g., https://xxxxxx.awsapps.com/start).",
     )
     session_ic.add_argument(
-        "--ic-region", metavar="region", required=True, help="AWS IAM Identity Center region (like `us-east-1`)"
+        "--ic-region", metavar="region", required=True, help="AWS IAM Identity Center region (e.g., us-east-1)."
     )
-    session_ic.add_argument("--account-id", metavar="id", required=True, help="AWS Account ID")
-    session_ic.add_argument("--role-name", metavar="name", required=True, help="Role name")
+    session_ic.add_argument("--account-id", metavar="id", required=True, help="AWS Account ID.")
+    session_ic.add_argument("--role-name", metavar="name", required=True, help="Role name.")
     session_ic.add_argument(
         "--aws-region",
         metavar="region",
         default=None,
-        help="An AWS region where the AWS resources are located ('--ic-region' value is used if unset).",
+        help="AWS Region where your AWS resources are located. Defaults to the value of --ic-region if unset.",
     )
     session_ic.add_argument(
         "--output",
         default="json",
         choices=["json", "text", "table", "yaml", "yaml-stream"],
-        help="An output format (default: 'json').",
+        help="Output format (default: json).",
     )
+    session_ic.add_argument("--no-prompt-update", action="store_true", help="Disable shell prompt modification.")
     session_ic.add_argument(
-        "--no-prompt-update", action="store_true", help="Disables a shell prompt modification if specified"
-    )
-    session_ic.add_argument(
-        "--prompt-text", metavar="text", help="Custom text to show in shell prompt (default: role@account)"
+        "--prompt-text", metavar="text", help="Custom text to show in the shell prompt (default: [role@account])."
     )
     session_ic.add_argument(
         "--prompt-color",
         metavar="color",
         type=lambda value: str(int(value)) if value and value.isdigit() else ShellPrompt.colors.get(value or "red", 1),
         default="red",
-        help="Specifies the shell prompt color either by a numeric tput color code or by one of these predefined names: black, red, green, yellow, blue, magenta, cyan, or white",
+        help="Shell prompt color, either a numeric tput color code or one of: black, red, green, yellow, blue, magenta, cyan, white.",
     )
 
     session_ak = subparsers.add_parser(
         "session-access-key",
         description="""
-        This command exports the environment variables required to authenticate CLI tools by creating an AWS login
-        session using the AWS Access Key. If an MFA device is configured, it will prompt for an MFA code.
+        Exports environment variables required to authenticate CLI tools by creating an AWS
+        login session using the specified Access Key. If an MFA device is configured, an MFA code
+        will be requested.
         """,
-        help="authenticates an access key",
+        help="Authenticate an AWS Access Key.",
         formatter_class=lambda prog: HelpFormatter(prog, max_help_position=35, width=100),
     )
-    session_ak.add_argument("--session-name", metavar="name", required=True, help="A name")
-    session_ak.add_argument("--access-key", metavar="key", required=True, help="Access Key")
-    session_ak.add_argument("--secret-access-key", metavar="secret-key", required=True, help="Secret Access Key")
-    session_ak.add_argument("--region", metavar="region", required=True, help="AWS Region")
-    session_ak.add_argument("--assume-role-arn", metavar="role", required=False, help="A role to assume")
+    session_ak.add_argument(
+        "--session-name", metavar="name", required=True, help="A name to associate with this session."
+    )
+    session_ak.add_argument("--access-key", metavar="key", required=True, help="AWS Access Key.")
+    session_ak.add_argument("--secret-access-key", metavar="secret-key", required=True, help="AWS Secret Access Key.")
+    session_ak.add_argument("--region", metavar="region", required=True, help="AWS Region.")
+    session_ak.add_argument(
+        "--assume-role-arn", metavar="role", required=False, help="An AWS IAM role to assume (optional)."
+    )
     session_ak.add_argument(
         "--output",
         default="json",
         choices=["json", "text", "table", "yaml", "yaml-stream"],
-        help="An output format (default: 'json').",
+        help="Output format (default: json).",
     )
+    session_ak.add_argument("--no-prompt-update", action="store_true", help="Disable shell prompt modification.")
     session_ak.add_argument(
-        "--no-prompt-update", action="store_true", help="Disables a shell prompt update if specified"
-    )
-    session_ak.add_argument(
-        "--prompt-text", metavar="text", help="Custom text to show in shell prompt (default: session name)"
+        "--prompt-text", metavar="text", help="Custom text to show in the shell prompt (default: [session-name])."
     )
     session_ak.add_argument(
         "--prompt-color",
         metavar="color",
         type=lambda value: str(int(value)) if value and value.isdigit() else ShellPrompt.colors.get(value or "red", 1),
         default="red",
-        help="Specifies the shell prompt color either by a numeric tput color code or by one of these predefined names: black, red, green, yellow, blue, magenta, cyan, or white",
+        help="Shell prompt color, either a numeric tput color code or one of: black, red, green, yellow, blue, magenta, cyan, white.",
     )
 
     args = parser.parse_args()

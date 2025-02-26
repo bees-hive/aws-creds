@@ -149,11 +149,12 @@ options:
 
 Commands:
   {describe-creds,scan-local,scan-ic,session-ic,session-access-key}
-    describe-creds      describes the AWS credentials in the current shell session
-    scan-local          generates shell functions for the local AWS CLI configuration
-    scan-ic             generates shell functions for an AWS IAM Identity Center
-    session-ic          authenticates an AWS Identity Center role
-    session-access-key  authenticates an access key
+    describe-creds      Describe the AWS credentials in the current shell session.
+    scan-local          Generate shell functions for the local AWS CLI configuration.
+    scan-ic             Generate shell functions for AWS IAM Identity Center.
+    session-ic          Authenticate an AWS Identity Center role.
+    session-access-key  Authenticate an AWS Access Key.
+
 ```
 
 ### `aws-creds describe-creds`
@@ -162,12 +163,13 @@ Commands:
 ~ aws-creds describe-creds --help
 usage: aws-creds describe-creds [-h]
 
-This command displays the current AWS credentials by inspecting the relevant environment variables
-in the shell session. Additionally, it executes automatically whenever aws-creds is run without any
+Displays the current AWS credentials by inspecting the relevant environment variables in the shell
+session. Additionally, this command executes automatically whenever aws-creds is run without any
 arguments.
 
 options:
   -h, --help  show this help message and exit
+
 ```
 
 ### `aws-creds scan-local`
@@ -176,11 +178,12 @@ options:
 ~ aws-creds scan-local --help
 usage: aws-creds scan-local [-h]
 
-This command starts an interactive workflow to create aws-creds shell functions based on your local
-AWS CLI configuration. Save the desired functions to your shell profile file for future use.
+Starts an interactive workflow to create aws-creds shell functions based on your local AWS CLI
+configuration. Save the generated functions to your shell profile for future use.
 
 options:
   -h, --help  show this help message and exit
+
 ```
 
 ### `aws-creds scan-ic`
@@ -189,13 +192,14 @@ options:
 ~ aws-creds scan-ic --help
 usage: aws-creds scan-ic [-h] [--ic-start-url URL] [--ic-region region]
 
-This command generates all possible aws-creds shell functions for each available account and role in
-AWS IAM Identity Center. Save the desired functions to your shell profile file for future use.
+Generates all possible aws-creds shell functions for each available account and role in AWS IAM
+Identity Center. Save the generated functions to your shell profile for future use.
 
 options:
   -h, --help          show this help message and exit
-  --ic-start-url URL  AWS IAM Identity Center start URL (like `https://xxxxxx.awsapps.com/start`)
-  --ic-region region  AWS IAM Identity Center region (like `us-east-1`)
+  --ic-start-url URL  AWS IAM Identity Center start URL (e.g., https://xxxxxx.awsapps.com/start).
+  --ic-region region  AWS IAM Identity Center region (e.g., us-east-1).
+
 ```
 
 ### `aws-creds session-ic`
@@ -207,24 +211,24 @@ usage: aws-creds session-ic [-h] --ic-start-url URL --ic-region region --account
                             [--output {json,text,table,yaml,yaml-stream}] [--no-prompt-update]
                             [--prompt-text text] [--prompt-color color]
 
-This command exports environment variables needed to authenticate CLI tools by initiating an AWS
-login session based on the AWS IAM Identity Center role.
+Exports environment variables needed to authenticate CLI tools by initiating an AWS login session
+based on the specified AWS IAM Identity Center role.
 
 options:
   -h, --help            show this help message and exit
-  --ic-start-url URL    AWS IAM Identity Center start URL (like `https://xxxxxx.awsapps.com/start`)
-  --ic-region region    AWS IAM Identity Center region (like `us-east-1`)
-  --account-id id       AWS Account ID
-  --role-name name      Role name
-  --aws-region region   An AWS region where the AWS resources are located ('--ic-region' value is
-                        used if unset).
+  --ic-start-url URL    AWS IAM Identity Center start URL (e.g., https://xxxxxx.awsapps.com/start).
+  --ic-region region    AWS IAM Identity Center region (e.g., us-east-1).
+  --account-id id       AWS Account ID.
+  --role-name name      Role name.
+  --aws-region region   AWS Region where your AWS resources are located. Defaults to the value of
+                        --ic-region if unset.
   --output {json,text,table,yaml,yaml-stream}
-                        An output format (default: 'json').
-  --no-prompt-update    Disables a shell prompt modification if specified
-  --prompt-text text    Custom text to show in shell prompt (default: role@account)
-  --prompt-color color  Specifies the shell prompt color either by a numeric tput color code or by
-                        one of these predefined names: black, red, green, yellow, blue, magenta,
-                        cyan, or white
+                        Output format (default: json).
+  --no-prompt-update    Disable shell prompt modification.
+  --prompt-text text    Custom text to show in the shell prompt (default: [role@account]).
+  --prompt-color color  Shell prompt color, either a numeric tput color code or one of: black, red,
+                        green, yellow, blue, magenta, cyan, white.
+
 ```
 
 ### `aws-creds session-access-key`
@@ -237,24 +241,24 @@ usage: aws-creds session-access-key [-h] --session-name name --access-key key
                                     [--output {json,text,table,yaml,yaml-stream}]
                                     [--no-prompt-update] [--prompt-text text] [--prompt-color color]
 
-This command exports the environment variables required to authenticate CLI tools by creating an AWS
-login session using the AWS Access Key. If an MFA device is configured, it will prompt for an MFA
-code.
+Exports environment variables required to authenticate CLI tools by creating an AWS login session
+using the specified Access Key. If an MFA device is configured, an MFA code will be requested.
 
 options:
   -h, --help                       show this help message and exit
-  --session-name name              A name
-  --access-key key                 Access Key
-  --secret-access-key secret-key   Secret Access Key
-  --region region                  AWS Region
-  --assume-role-arn role           A role to assume
+  --session-name name              A name to associate with this session.
+  --access-key key                 AWS Access Key.
+  --secret-access-key secret-key   AWS Secret Access Key.
+  --region region                  AWS Region.
+  --assume-role-arn role           An AWS IAM role to assume (optional).
   --output {json,text,table,yaml,yaml-stream}
-                                   An output format (default: 'json').
-  --no-prompt-update               Disables a shell prompt update if specified
-  --prompt-text text               Custom text to show in shell prompt (default: session name)
-  --prompt-color color             Specifies the shell prompt color either by a numeric tput color
-                                   code or by one of these predefined names: black, red, green,
-                                   yellow, blue, magenta, cyan, or white
+                                   Output format (default: json).
+  --no-prompt-update               Disable shell prompt modification.
+  --prompt-text text               Custom text to show in the shell prompt (default: [session-
+                                   name]).
+  --prompt-color color             Shell prompt color, either a numeric tput color code or one of:
+                                   black, red, green, yellow, blue, magenta, cyan, white.
+
 ```
 
 ## Tips and Tricks
