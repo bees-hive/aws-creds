@@ -7,7 +7,7 @@ git checkout main
 git pull --tags
 # deside on version
 # shellcheck disable=SC2046 # Quote this to prevent word splitt...
-latest_tag=$(git describe --tags $(git rev-list --tags --max-count=1))
+latest_tag=$(git tag --sort='-*authordate' | head -1)
 echo "Commit history since the '${latest_tag}' tag:"
 git log "${latest_tag}"..HEAD --oneline
 read -r -p "What is the next version? " new_version

@@ -23,7 +23,7 @@ MESSAGE
 fi
 # add GitHub release
 # shellcheck disable=SC2046 # Quote this to prevent word splitt...
-git-elegant show-release-notes smart $(git tag | tail -2 | head -1) $(git tag | tail -1) | pbcopy
+git-elegant show-release-notes smart $(git tag --sort='-*authordate' | head -2 | tail -1) $(git tag --sort='-*authordate' | head -1) | pbcopy
 echo "Release notes are in the clipboard."
 sleep 2
 open https://github.com/bees-hive/aws-creds/releases/new
