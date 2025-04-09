@@ -209,7 +209,7 @@ options:
 usage: aws-creds session-ic [-h] --ic-start-url URL --ic-region region --account-id id
                             --role-name name [--aws-region region]
                             [--output {json,text,table,yaml,yaml-stream}] [--no-prompt-update]
-                            [--prompt-text text] [--prompt-color color]
+                            [--prompt-text text] [--prompt-color color] [--no-browser]
 
 Exports environment variables needed to authenticate CLI tools by initiating an AWS login session
 based on the specified AWS IAM Identity Center role.
@@ -228,6 +228,7 @@ options:
   --prompt-text text    Custom text to show in the shell prompt (default: [role@account]).
   --prompt-color color  Shell prompt color, either a numeric tput color code or one of: black, red,
                         green, yellow, blue, magenta, cyan, white.
+  --no-browser          Do not open the verification URL in a browser.
 
 ```
 

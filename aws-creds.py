@@ -8,7 +8,7 @@ import os
 import sys
 from typing import Dict, Optional, Literal, TextIO
 
-__version__ = "0.9.0"
+__version__ = "0.9.0+20250409-112521"
 _prog = Path(__file__).name.split(".")[0]
 _cache_home = Path.home().joinpath(".cache").joinpath(_prog)
 _clear_session_function_name = f"{_prog}-clear-session"
@@ -137,7 +137,7 @@ class ShellPrompt:
         print('export PS1="${AWS_CREDS_PROMPT_PREFIX} ${AWS_CREDS_ORIGIN_PS1}"', file=sys.stdout)
 
 
-def _new_session_token(identity_center: IdentityCenter) -> str:
+def _new_session_token(identity_center: IdentityCenter, *, use_browser: bool) -> str:
     sso_oidc = Session().create_client("sso-oidc", region_name=identity_center.ic_region)
     client_creds = sso_oidc.register_client(clientName=_prog, clientType="public", scopes=["sso:account:access"])
     device_authorization = sso_oidc.start_device_authorization(
@@ -149,11 +149,14 @@ def _new_session_token(identity_center: IdentityCenter) -> str:
     device_code = device_authorization["deviceCode"]
     expires_in = device_authorization["expiresIn"]
     interval = device_authorization["interval"]
-    import webbrowser
+    if use_browser:
+        import webbrowser
 
-    print("Opening a browser to authenticate...", file=sys.stderr)
+        print("Starting the device verification...", file=sys.stderr)
+        webbrowser.open(url, autoraise=True)
+    else:
+        print("Please open the URL below to verify the device...", file=sys.stderr)
     print(f"Verification URL: {url}", file=sys.stderr)
-    webbrowser.open(url, autoraise=True)
     code_line = "Verification code: " + device_authorization["userCode"]
     print(code_line, end="\r", file=sys.stderr)
     from time import sleep
@@ -181,21 +184,21 @@ def _cached_token(access_token_file_name: Path) -> str:
         return access_token_file.readline()
 
 
-def _new_token(identity_center: IdentityCenter) -> str:
+def _new_token(identity_center: IdentityCenter, *, use_browser: bool) -> str:
     with open(identity_center.cache_file(), "w") as access_token_file:
-        access_token = _new_session_token(identity_center)
+        access_token = _new_session_token(identity_center, use_browser=use_browser)
         access_token_file.write(access_token)
         return access_token
 
 
-def _token(identity_center: IdentityCenter) -> str:
+def _token(identity_center: IdentityCenter, *, use_browser: bool) -> str:
     while True:
         if identity_center.cache_file().exists():
             print("Previous AWS IAM Identity Center session found...", file=sys.stderr)
             access_token = _cached_token(identity_center.cache_file())
         else:
             print("Initializing new AWS IAM Identity Center session...", file=sys.stderr)
-            access_token = _new_token(identity_center)
+            access_token = _new_token(identity_center, use_browser=use_browser)
         try:
             Session().create_client("sso", region_name=identity_center.ic_region).list_accounts(
                 accessToken=access_token, maxResults=1
@@ -210,7 +213,8 @@ def _token(identity_center: IdentityCenter) -> str:
 
 def _identity_center_scan(ic: IdentityCenter, printer: Printer) -> None:
     sso = Session().create_client("sso", region_name=ic.ic_region)
-    token = _token(ic)
+    use_browser = "y" in input("Open the verification URL automatically (y/n): ").lower()
+    token = _token(ic, use_browser=use_browser)
     printer.append(f"# {ic}")
     for account in sso.list_accounts(accessToken=token, maxResults=100)["accountList"]:
         account_name = account["accountName"]
@@ -256,10 +260,17 @@ def _print_session_commands_footer():
 
 
 def _session_ic(
-    ic: IdentityCenter, account_id: str, role: str, aws_region: str, output: str, prompt: ShellPrompt
+    ic: IdentityCenter,
+    account_id: str,
+    role: str,
+    aws_region: str,
+    output: str,
+    prompt: ShellPrompt,
+    *,
+    use_browser: bool,
 ) -> None:
     sso = Session().create_client("sso", region_name=ic.ic_region)
-    token = _token(ic)
+    token = _token(ic, use_browser=use_browser)
     role_creds = sso.get_role_credentials(roleName=role, accountId=account_id, accessToken=token)["roleCredentials"]
     account_name = ""
     for account in sso.list_accounts(accessToken=token, maxResults=100)["accountList"]:
@@ -714,6 +725,11 @@ def main():
         default="red",
         help="Shell prompt color, either a numeric tput color code or one of: black, red, green, yellow, blue, magenta, cyan, white.",
     )
+    session_ic.add_argument(
+        "--no-browser",
+        action="store_true",
+        help="Do not open the verification URL in a browser.",
+    )
 
     session_ak = subparsers.add_parser(
         "session-access-key",
@@ -767,6 +783,7 @@ def main():
             args.aws_region,
             args.output,
             ShellPrompt(enabled=not args.no_prompt_update, custom_prompt=args.prompt_text, color=args.prompt_color),
+            use_browser=not args.no_browser,
         )
     elif args.subcommand == "session-access-key":
         _clear_session()
