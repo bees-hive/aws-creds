@@ -12,6 +12,7 @@ ruff format --config line-length=120 aws-creds.py
 
 echo "Verifying 'install.sh'..."
 INSTALL_DIR=.install bash <install.sh
+rm -rv .install
 
 echo "Update __version__ in 'aws-creds.py'..."
 # shellcheck disable=SC2046 # Quote this to prevent word splitt...

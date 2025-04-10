@@ -8,7 +8,7 @@ import os
 import sys
 from typing import Dict, Optional, Literal, TextIO
 
-__version__ = "0.10.0+20250409-114843"
+__version__ = "0.10.0+20250410-184433"
 _prog = Path(__file__).name.split(".")[0]
 _cache_home = Path.home().joinpath(".cache").joinpath(_prog)
 _clear_session_function_name = f"{_prog}-clear-session"
@@ -112,28 +112,11 @@ class ShellPrompt:
             return
 
         print('export AWS_CREDS_ORIGIN_PS1="${AWS_CREDS_ORIGIN_PS1:-${PS1:-}}"', file=sys.stdout)
-
-        if self._custom_prompt:
-            print(
-                f'export AWS_CREDS_PROMPT_PREFIX="$(tput setaf {self._color})[{self._custom_prompt}]$(tput sgr0)"',
-                file=sys.stdout,
-            )
-        else:
-            print(
-                """
-            color=$(tput setaf {color_num})
-            current_shell=$(ps -p $$ | awk "NR==2" | awk '{ print $4 }' | tr -d '-')
-            if [[ $current_shell == 'bash' ]]; then
-              export AWS_CREDS_PROMPT_PREFIX="$color[${FUNCNAME[0]}]$(tput sgr0)"
-            elif [[ $current_shell == 'zsh' ]]; then
-              export AWS_CREDS_PROMPT_PREFIX="$color[$funcstack[2]]$(tput sgr0)"
-            else
-              export AWS_CREDS_PROMPT_PREFIX="$color[{default}]$(tput sgr0)"
-            fi
-            """.replace("{color_num}", str(self._color)).replace("{default}", default_prefix),
-                file=sys.stdout,
-            )
-
+        custom_prompt = self._custom_prompt if self._custom_prompt else default_prefix
+        print(
+            f'export AWS_CREDS_PROMPT_PREFIX="$(tput setaf {self._color})[{custom_prompt}]$(tput sgr0)"',
+            file=sys.stdout,
+        )
         print('export PS1="${AWS_CREDS_PROMPT_PREFIX} ${AWS_CREDS_ORIGIN_PS1}"', file=sys.stdout)
 
 
