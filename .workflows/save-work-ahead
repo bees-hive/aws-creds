@@ -10,10 +10,6 @@ ruff check --config line-length=120 --fix aws-creds.py ||
   ruff check --config line-length=120 --add-noqa aws-creds.py
 ruff format --config line-length=120 aws-creds.py
 
-echo "Verifying 'install.sh'..."
-INSTALL_DIR=.install bash <install.sh
-rm -rv .install
-
 echo "Update __version__ in 'aws-creds.py'..."
 # shellcheck disable=SC2046 # Quote this to prevent word splitt...
 latest_tag=$(git describe --tags $(git rev-list --tags --max-count=1))
@@ -25,3 +21,11 @@ else
   sed -i "s/__version__ = .*/__version__ = \"$new_version\"/" aws-creds.py
 fi
 python aws-creds.py --version
+
+echo "Verifying 'install.sh'..."
+if test "$USER" != "extsoft"; then
+  echo "Local installation has been disabled for the '$USER' user."
+  echo "To enable it, please update '.workflows/save-work-after' script."
+else
+  bash install.sh
+fi

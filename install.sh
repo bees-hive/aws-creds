@@ -3,7 +3,7 @@ set -o errexit
 set -o pipefail
 # installation
 DOWNLOAD_URL="https://raw.githubusercontent.com/bees-hive/aws-creds/main/aws-creds.py"
-: INSTALL_DIR="${INSTALL_DIR:="/usr/local/bin"}"
+: INSTALL_DIR="${INSTALL_DIR:="$HOME/.local/bin"}"
 echo "Installing to the '$INSTALL_DIR'..."
 mkdir -p "$INSTALL_DIR"
 INSTALLATION="$INSTALL_DIR/aws-creds"
